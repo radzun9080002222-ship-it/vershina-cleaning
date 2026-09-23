@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Итоги заказов по городам</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+  --grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);--wash:rgba(11,11,11,.04);
+  --done:#0ca30c;--cancel:#d03b3b;--plan:#2a78d6;--warn:#fab219;
+  --done-ink:#006300;--cancel-ink:#b02a2a;--plan-ink:#1c5cab;
+  --chip:#ffffff;--chip-on:#0b0b0b;--chip-on-ink:#ffffff;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --page:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink2:#c3c2b7;--muted:#898781;
+    --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);--wash:rgba(255,255,255,.05);
+    --plan:#3987e5;--done-ink:#0ca30c;--cancel-ink:#e66767;--plan-ink:#86b6ef;
+    --chip:#1a1a19;--chip-on:#ffffff;--chip-on-ink:#0b0b0b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink2:#c3c2b7;--muted:#898781;
+  --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);--wash:rgba(255,255,255,.05);
+  --plan:#3987e5;--done-ink:#0ca30c;--cancel-ink:#e66767;--plan-ink:#86b6ef;
+  --chip:#1a1a19;--chip-on:#ffffff;--chip-on-ink:#0b0b0b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 64px}
+h1{font-size:28px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em}
+h2{font-size:17px;margin:0 0 4px}
+.sub{color:var(--ink2);margin:0}
+.small{font-size:13px;color:var(--muted)}
+.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.theme-btn{border:1px solid var(--ring);background:var(--chip);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer;font:inherit;font-size:13px}
+.filters{position:sticky;top:0;z-index:5;background:var(--page);padding:14px 0 12px;margin:14px 0 6px;border-bottom:1px solid var(--grid);display:flex;flex-direction:column;gap:8px}
+.frow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.flabel{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:64px}
+.chip{border:1px solid var(--ring);background:var(--chip);color:var(--ink);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--wash)}
+.chip[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink);border-color:var(--chip-on)}
+.chip .n{opacity:.6;margin-left:4px;font-variant-numeric:tabular-nums}
+.toggle{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--ink2);cursor:pointer;margin-left:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:18px 0}
+.kpi{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:14px 16px}
+.kpi .v{font-size:26px;font-weight:650;margin-top:2px;line-height:1.1}
+.kpi .l{font-size:13px;color:var(--ink2)}
+.kpi .d{font-size:12px;color:var(--muted);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:12px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:18px;margin-bottom:12px;min-width:0}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink2)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+/* city bars */
+.crow{display:grid;grid-template-columns:128px 1fr 92px;gap:10px;align-items:center;padding:5px 6px;border-radius:8px;cursor:pointer}
+.crow:hover,.crow.on{background:var(--wash)}
+.crow .name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{display:flex;gap:2px;height:22px;align-items:stretch}
+.seg{border-radius:4px;min-width:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.seg.done{background:var(--done)}.seg.cancel{background:var(--cancel)}.seg.plan{background:var(--plan)}
+.rate{text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.rate b{color:var(--ink)}
+.rate.hot b{color:var(--cancel-ink)}
+/* reasons */
+.rrow{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:pointer}
+.rrow:hover,.rrow.on{background:var(--wash)}
+.rtxt{font-size:14px;margin-bottom:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--ring);color:var(--ink2);white-space:nowrap}
+.tag.our{border-color:var(--cancel);color:var(--cancel-ink)}
+.rbar{height:10px;border-radius:0 4px 4px 0;background:var(--cancel)}
+.rbar.client{background:var(--muted)}
+.rn{text-align:right;font-weight:650;font-variant-numeric:tabular-nums}
+/* weekly */
+.weeks{display:flex;align-items:flex-end;gap:10px;height:190px;border-bottom:1px solid var(--axis);padding:0 4px;position:relative}
+.wk{flex:1;display:flex;flex-direction:column-reverse;gap:2px;height:100%;justify-content:flex-start;cursor:default;position:relative}
+.wk .s{border-radius:0;width:100%}
+.wk .s:last-child{border-radius:4px 4px 0 0}
+.wk .s.done{background:var(--done)}.wk .s.cancel{background:var(--cancel)}.wk .s.plan{background:var(--plan)}
+.wk:hover{background:var(--wash)}
+.wlabels{display:flex;gap:10px;padding:6px 4px 0}
+.wlabels div{flex:1;text-align:center;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gridline{position:absolute;left:0;right:0;border-top:1px dashed var(--grid);font-size:10px;color:var(--muted)}
+.gridline span{position:absolute;left:-2px;top:-14px}
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;text-align:left;padding:8px;border-bottom:1px solid var(--axis);white-space:nowrap;cursor:pointer;user-select:none}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+td{padding:8px;border-bottom:1px solid var(--grid);vertical-align:top}
+tbody tr:hover{background:var(--wash)}
+.badge{display:inline-flex;gap:5px;align-items:center;font-size:12px;font-weight:600;white-space:nowrap}
+.badge.done{color:var(--done-ink)}.badge.cancel{color:var(--cancel-ink)}.badge.plan{color:var(--plan-ink)}
+.badge i{font-style:normal;display:inline-flex;width:16px;height:16px;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:10px}
+.badge.done i{background:var(--done)}.badge.cancel i{background:var(--cancel)}.badge.plan i{background:var(--plan)}
+.note{color:var(--ink2);font-size:13px}
+.flag{color:var(--cancel-ink);font-weight:600}
+/* insights */
+.ins{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.in{border:1px solid var(--ring);border-radius:12px;padding:14px 16px;background:var(--surface);border-left:4px solid var(--muted)}
+.in.hi{border-left-color:var(--cancel)}.in.mid{border-left-color:var(--warn)}.in.ok{border-left-color:var(--plan)}
+.in h3{margin:0 0 6px;font-size:15px}
+.in p{margin:0;color:var(--ink2);font-size:14px}
+.in .do{margin-top:8px;font-size:13px;color:var(--ink)}
+.in .lvl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+#funnel{font-size:13px}#funnel th,#funnel td{padding:7px 5px}
+#tip{position:fixed;pointer-events:none;z-index:50;background:var(--surface);color:var(--ink);border:1px solid var(--ring);box-shadow:0 6px 24px rgba(0,0,0,.18);border-radius:10px;padding:9px 11px;font-size:13px;line-height:1.4;opacity:0;transition:opacity .08s;max-width:280px}
+#tip b{font-weight:650}
+#tip .tr{display:flex;justify-content:space-between;gap:14px;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:14px;padding:12px 6px}
+section{margin-top:26px}
+.sec-h{margin:0 0 10px;font-size:20px}
+@media (max-width:560px){
+  .filters{position:static}
+  h1{font-size:23px}
+  .crow{grid-template-columns:92px 1fr 70px;gap:6px}
+  .weeks{gap:4px}.wlabels{gap:4px}
+  .kpi .v{font-size:22px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Итоги: заказы, выполнение и отмены</h1>
+      <p class="sub">Все города · источник — Google Календарь заказов · срез на 23 сентября 2026</p>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">Тема</button>
+  </div>
+
+  <div class="filters" role="group" aria-label="Фильтры">
+    <div class="frow"><span class="flabel">Период</span><div class="frow" id="fPeriod"></div></div>
+    <div class="frow"><span class="flabel">Город</span><div class="frow" id="fCity"></div></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-h">
+        <div><h2>Заказы по городам</h2><div class="small">Клик по городу — фильтр. Справа — доля отмен среди закрытых заказов</div></div>
+        <div class="legend"><span><i class="sw" style="background:var(--done)"></i>Выполнен</span><span><i class="sw" style="background:var(--cancel)"></i>Отменён</span><span><i class="sw" style="background:var(--plan)"></i>Запланирован</span></div>
+      </div>
+      <div id="cities"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <div><h2>Причины отмен</h2><div class="small">Клик — показать эти заказы в таблице ниже</div></div>
+        <div class="legend"><span><i class="sw" style="background:var(--cancel)"></i>Наша сторона</span><span><i class="sw" style="background:var(--muted)"></i>Сторона клиента</span></div>
+      </div>
+      <div id="reasons"></div>
+      <div class="small" id="lostLine" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-h">
+        <div><h2>Динамика по неделям</h2><div class="small">Заказы по дате уборки, неделя начинается в понедельник</div></div>
+        <div class="legend"><span><i class="sw" style="background:var(--done)"></i>Выполнен</span><span><i class="sw" style="background:var(--cancel)"></i>Отменён</span><span><i class="sw" style="background:var(--plan)"></i>Запланирован</span></div>
+      </div>
+      <div id="weeks"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <div><h2>Заявки на расчёт → заказы</h2><div class="small">Только сентябрь: события «Узнавали цену» начали записываться с 3.09</div></div>
+        <label class="toggle"><input type="checkbox" id="showTest"> учитывать похожие на тест</label>
+      </div>
+      <div class="tbl-wrap"><table id="funnel"></table></div>
+    </div>
+  </div>
+
+  <section>
+    <h2 class="sec-h">На что обратить внимание</h2>
+    <div class="ins" id="insights"></div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="card-h">
+        <div><h2>Все заказы</h2><div class="small" id="tblHint">Клик по заголовку — сортировка</div></div>
+        <div class="frow" id="fStatus"></div>
+      </div>
+      <div class="tbl-wrap"><table id="orders"></table></div>
+    </div>
+  </section>
+
+  <p class="small" style="margin-top:22px">Персональные данные клиентов (имена, телефоны, адреса) на страницу не выводятся. Прибыль у выполненных заказов — как записано в карточке. У отменённых и будущих в карточках часто «Чистая прибыль = цене», поэтому здесь для них считается выручка, а не прибыль. Страница закрыта от индексации.</p>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+// ---------- ДАННЫЕ (из Google Календаря, без персданных) ----------
+const ORDERS = [
+ {d:"2026-08-04",c:"Сочи",s:"Генеральная уборка",m:30,st:"done",p:9000,pr:5000},
+ {d:"2026-08-05",c:"Сочи",s:"Всё включено",m:100,st:"done",p:85000,pr:40000,n:"Сухум, стоматология; работали 2 бригады"},
+ {d:"2026-08-07",c:"Сочи",s:"Влажная уборка",m:6,st:"done",p:6000,pr:3000,n:"Чистка рекламной стелы"},
+ {d:"2026-08-19",c:"Сочи",s:"Генеральная уборка",m:40,st:"done",p:14200,pr:5200},
+ {d:"2026-08-24",c:"Липецк",s:"Генеральная уборка",m:250,st:"done",p:70000,pr:19000,n:"Автосалон после ремонта"},
+ {d:"2026-08-26",c:"Липецк",s:"Влажная уборка",m:40,st:"done",p:8500,pr:3500},
+ {d:"2026-08-30",c:"Липецк",s:"Влажная уборка",m:60,st:"done",p:8760,pr:3260},
+ {d:"2026-09-05",c:"Новый Уренгой",s:"Влажная уборка",m:6,st:"done",p:6000,pr:2000},
+ {d:"2026-09-05",c:"Сочи",s:"Генеральная уборка",m:140,st:"cancel",p:40000,pr:2000,r:"penalty",n:"Клиент сорвался, оплатил неустойку 6 000 ₽; 4 000 ₽ ушло клинеру и бригадиру"},
+ {d:"2026-09-10",c:"Липецк",s:"Входная группа",m:60,st:"done",p:15000,pr:3000,n:"Театр «Купол»; пришёл из заявки на расчёт 7.09"},
+ {d:"2026-09-10",c:"Сочи",s:"Химчистка мебели",m:null,st:"done",p:4000,pr:2000},
+ {d:"2026-09-11",c:"Липецк",s:"Генеральная уборка",m:26,st:"done",p:16500,pr:8000},
+ {d:"2026-09-12",c:"Салехард",s:"Генеральная уборка",m:30,st:"done",p:14900,pr:3900},
+ {d:"2026-09-12",c:"Липецк",s:"Влажная уборка",m:65,st:"cancel",p:21870,r:"silent",n:"«Отменился», причина не записана"},
+ {d:"2026-09-13",c:"Новый Уренгой",s:"Генеральная уборка",m:35,st:"done",p:12000,pr:2000},
+ {d:"2026-09-14",c:"Новый Уренгой",s:"Генеральная уборка",m:37,st:"cancel",p:17450,r:"door",n:"Бригада приехала — клиент не открыл дверь"},
+ {d:"2026-09-15",c:"Воронеж",s:"Генеральная уборка",m:68,st:"done",p:22500,pr:6500},
+ {d:"2026-09-16",c:"Сочи",s:"Генеральная уборка",m:27,st:"cancel",p:11650,r:"moved",mv:true,n:"Перенесён с 12.09, затем отменён — клиент переехал"},
+ {d:"2026-09-17",c:"Сочи",s:"Генеральная уборка",m:35,st:"done",p:21800,pr:5000,n:"Оплачен частично"},
+ {d:"2026-09-19",c:"Воронеж",s:"Генеральная уборка",m:30,st:"cancel",p:9900,r:"silent",mv:true,n:"Хотели на 13.09, стоял на 19.09 — отмена без причины"},
+ {d:"2026-09-20",c:"Воронеж",s:"После ремонта",m:36,st:"done",p:16900,pr:4900},
+ {d:"2026-09-21",c:"Рязань",s:"Генеральная уборка",m:40,st:"done",p:16900,pr:4900},
+ {d:"2026-09-21",c:"Тула",s:"Всё включено",m:41,st:"cancel",p:18450,r:"silent",mv:true,n:"Перенесён с 20.09 — клиент отменил"},
+ {d:"2026-09-21",c:"Липецк",s:"Влажная уборка",m:60,st:"cancel",p:12600,r:"silent",mv:true,n:"Перенесён с 20.09 — клиент отменил"},
+ {d:"2026-09-22",c:"Тула",s:"После ремонта",m:45,st:"cancel",p:23900,r:"team",n:"Отмена по приезду: команда была плохо сформирована"},
+ {d:"2026-09-23",c:"Тула",s:"Генеральная уборка",m:41,st:"plan",p:12900,n:"Сегодня, статус ещё не отмечен"},
+ {d:"2026-09-23",c:"Воронеж",s:"Генеральная уборка",m:15,st:"cancel",p:9000,r:"ladder",n:"Потолки 3 м, лестница была указана в заявке — клинер приехал без неё"},
+ {d:"2026-09-24",c:"Сочи",s:"Генеральная уборка",m:50,st:"plan",p:12500},
+ {d:"2026-09-26",c:"Сочи",s:"После ремонта",m:150,st:"plan",p:44000,pr:14000,n:"Предчистовая, потом будет вторая чистовая"},
+ {d:"2026-10-15",c:"Тула",s:"Санузел + окна",m:null,st:"plan",p:9000,pr:100,n:"Расходы 8 900 ₽ — прибыль 100 ₽",flag:true},
+ {d:"2026-11-25",c:"Липецк",s:"Всё включено",m:26,st:"plan",p:17700,n:"Цена зафиксирована в MAX 14.09"}
+];
+const REASONS = {
+  silent:{t:"Клиент отменил, причина не записана",our:false},
+  team:{t:"Плохо собранная бригада — отмена по приезду",our:true},
+  ladder:{t:"Клинер без нужного инвентаря (лестница)",our:true},
+  door:{t:"Клиент не открыл дверь",our:false},
+  moved:{t:"Клиент переехал",our:false},
+  penalty:{t:"Срыв в день уборки (взята неустойка)",our:false}
+};
+// Заявки «Узнавали цену» (город — из карточки расчёта)
+const LEADS = [
+ {d:"2026-09-03",c:"Сочи",m:100,p:44500},
+ {d:"2026-09-04",c:"Сочи",m:1900,p:570000},
+ {d:"2026-09-05",c:"Новый Уренгой",m:20,p:6000},
+ {d:"2026-09-05",c:"Сочи",m:50,p:25000},
+ {d:"2026-09-06",c:"Липецк",m:50,p:12500},
+ {d:"2026-09-07",c:"Липецк",m:60,p:12000},
+ {d:"2026-09-08",c:"Липецк",m:560,p:99000},
+ {d:"2026-09-09",c:"Сочи",m:30000,p:9000000},
+ {d:"2026-09-11",c:"Липецк",m:40,p:6400},
+ {d:"2026-09-12",c:"Воронеж",m:36,p:15500},
+ {d:"2026-09-12",c:"Новый Уренгой",m:70,p:27000},
+ {d:"2026-09-12",c:"Воронеж",m:33,p:9000},
+ {d:"2026-09-14",c:"Воронеж",m:46,p:23000},
+ {d:"2026-09-14",c:"Воронеж",m:53,p:21950},
+ {d:"2026-09-15",c:"Сочи",m:40,p:20000},
+ {d:"2026-09-15",c:"Воронеж",m:1,p:6000,test:"1 м²"},
+ {d:"2026-09-16",c:"Новый Уренгой",m:1,p:6000,test:"1 м²"},
+ {d:"2026-09-16",c:"Сочи",m:null,p:7000},
+ {d:"2026-09-17",c:"Рязань",m:70,p:0,test:"скидка 100%"},
+ {d:"2026-09-17",c:"Новый Уренгой",m:32,p:14500},
+ {d:"2026-09-17",c:"Сочи",m:50,p:8000},
+ {d:"2026-09-18",c:"Воронеж",m:30,p:8000},
+ {d:"2026-09-19",c:"Рязань",m:31,p:13950},
+ {d:"2026-09-20",c:"Рязань",m:35,p:6000},
+ {d:"2026-09-20",c:"Рязань",m:35,p:9000,test:"дубль той же минуты"},
+ {d:"2026-09-21",c:"Тула",m:100,p:25000,test:"4 города за 1 минуту"},
+ {d:"2026-09-21",c:"Тула",m:40,p:10000,test:"4 города за 1 минуту"},
+ {d:"2026-09-21",c:"Рязань",m:40,p:10000,test:"4 города за 1 минуту"},
+ {d:"2026-09-21",c:"Сочи",m:40,p:10000,test:"4 города за 1 минуту"},
+ {d:"2026-09-21",c:"Сочи",m:85,p:21250},
+ {d:"2026-09-23",c:"Сочи",m:10,p:6000}
+];
+const CITY_ORDER = ["Сочи","Липецк","Воронеж","Тула","Новый Уренгой","Рязань","Салехард"];
+const TODAY = "2026-09-23";
+
+// ---------- УТИЛИТЫ ----------
+const $ = s => document.querySelector(s);
+const rub = n => (n==null?"—":Math.round(n).toLocaleString("ru-RU")+" ₽");
+const krub = n => n>=1e6 ? (n/1e6).toLocaleString("ru-RU",{maximumFractionDigits:1})+" млн ₽" : n>=1e4 ? Math.round(n/1000).toLocaleString("ru-RU")+" тыс ₽" : rub(n);
+const pct = x => isFinite(x) ? Math.round(x*100)+"%" : "—";
+const fdate = d => { const [y,m,dd]=d.split("-"); return dd+"."+m; };
+const ST = {done:"Выполнен",cancel:"Отменён",plan:"Запланирован"};
+const ICO = {done:"✓",cancel:"✕",plan:"•"};
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const PERIODS = [
+  {k:"all",t:"Всё время",f:()=>true},
+  {k:"aug",t:"Август",f:o=>o.d.startsWith("2026-08")},
+  {k:"sep",t:"Сентябрь",f:o=>o.d.startsWith("2026-09")},
+  {k:"14",t:"Последние 14 дней",f:o=>o.d>="2026-09-10" && o.d<=TODAY},
+  {k:"future",t:"Будущие",f:o=>o.d>=TODAY && o.st==="plan"}
+];
+const state = {period:"all", city:"all", status:"all", reason:null, sort:{k:"d",dir:1}, test:false};
+
+// ---------- ТЕМА ----------
+(function(){
+  let t=null; try{t=localStorage.getItem("total-theme")}catch(e){}
+  if(t) document.documentElement.dataset.theme=t;
+  const btn=$("#themeBtn");
+  const label=()=>{const dark=document.documentElement.dataset.theme? document.documentElement.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; btn.textContent=dark?"☀ Светлая":"☾ Тёмная";};
+  label();
+  btn.onclick=()=>{const dark=document.documentElement.dataset.theme? document.documentElement.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const nt=dark?"light":"dark"; document.documentElement.dataset.theme=nt; try{localStorage.setItem("total-theme",nt)}catch(e){} label();};
+})();
+
+// ---------- ТУЛТИП ----------
+const tip=$("#tip");
+function showTip(e,html){tip.innerHTML=html;tip.style.opacity=1;moveTip(e);}
+function moveTip(e){const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;
+  if(x+w>innerWidth-8)x=e.clientX-w-14; if(y+h>innerHeight-8)y=e.clientY-h-14; tip.style.left=Math.max(8,x)+"px";tip.style.top=Math.max(8,y)+"px";}
+function hideTip(){tip.style.opacity=0;}
+function bindTip(el,fn){el.addEventListener("mouseenter",e=>showTip(e,fn()));el.addEventListener("mousemove",moveTip);el.addEventListener("mouseleave",hideTip);}
+
+// ---------- ФИЛЬТРЫ ----------
+function periodRows(){const f=PERIODS.find(p=>p.k===state.period).f;return ORDERS.filter(f);}
+function rows(){return periodRows().filter(o=>state.city==="all"||o.c===state.city);}
+
+function renderFilters(){
+  const pr=periodRows();
+  $("#fPeriod").innerHTML=PERIODS.map(p=>`<button class="chip" data-p="${p.k}" aria-pressed="${state.period===p.k}">${p.t}</button>`).join("");
+  const cnt=c=>pr.filter(o=>o.c===c).length;
+  $("#fCity").innerHTML=`<button class="chip" data-c="all" aria-pressed="${state.city==="all"}">Все<span class="n">${pr.length}</span></button>`+
+    CITY_ORDER.map(c=>`<button class="chip" data-c="${c}" aria-pressed="${state.city===c}">${c}<span class="n">${cnt(c)}</span></button>`).join("");
+  document.querySelectorAll("#fPeriod .chip").forEach(b=>b.onclick=()=>{state.period=b.dataset.p;render();});
+  document.querySelectorAll("#fCity .chip").forEach(b=>b.onclick=()=>{state.city=b.dataset.c;render();});
+}
+
+// ---------- KPI ----------
+function renderKpis(){
+  const r=rows();
+  const done=r.filter(o=>o.st==="done"),can=r.filter(o=>o.st==="cancel"),plan=r.filter(o=>o.st==="plan");
+  const rev=done.reduce((a,o)=>a+o.p,0),prof=done.reduce((a,o)=>a+(o.pr||0),0);
+  const lost=can.reduce((a,o)=>a+o.p,0);
+  const closed=done.length+can.length;
+  const our=can.filter(o=>REASONS[o.r]&&REASONS[o.r].our).length;
+  const k=[
+    {l:"Всего заказов",v:r.length,d:`${closed} закрыто · ${plan.length} впереди`},
+    {l:"Выполнено",v:done.length,d:done.length?`средний чек ${rub(rev/done.length)}`:"—",c:"var(--done-ink)"},
+    {l:"Отменено",v:can.length,d:`${pct(can.length/closed)} от закрытых · ${our} по нашей вине`,c:"var(--cancel-ink)"},
+    {l:"Выручка (выполненные)",v:krub(rev),d:rev?`маржа ${pct(prof/rev)}`:"—"},
+    {l:"Прибыль (выполненные)",v:krub(prof),d:"как записано в карточках"},
+    {l:"Упущено на отменах",v:krub(lost),d:can.length?"сумма отменённых заказов":"—",c:lost?"var(--cancel-ink)":null},
+    {l:"В плане",v:krub(plan.reduce((a,o)=>a+o.p,0)),d:`${plan.length} заказ(а)`,c:"var(--plan-ink)"}
+  ];
+  $("#kpis").innerHTML=k.map(x=>`<div class="kpi"><div class="l">${x.l}</div><div class="v"${x.c?` style="color:${x.c}"`:""}>${x.v}</div><div class="d">${x.d}</div></div>`).join("");
+}
+
+// ---------- ГОРОДА ----------
+function renderCities(){
+  const pr=periodRows();
+  const data=CITY_ORDER.map(c=>{const r=pr.filter(o=>o.c===c);return{c,done:r.filter(o=>o.st==="done"),can:r.filter(o=>o.st==="cancel"),plan:r.filter(o=>o.st==="plan"),n:r.length};}).filter(x=>x.n);
+  data.sort((a,b)=>b.n-a.n);
+  const max=Math.max(1,...data.map(x=>x.n));
+  if(!data.length){$("#cities").innerHTML=`<div class="empty">Нет заказов за период</div>`;return;}
+  $("#cities").innerHTML=data.map((x,i)=>{
+    const closed=x.done.length+x.can.length, rate=closed?x.can.length/closed:NaN;
+    const seg=(arr,cls)=>arr.length?`<div class="seg ${cls}" style="flex:0 0 calc(${arr.length/max*100}% - 2px)">${arr.length/max>0.07?arr.length:""}</div>`:"";
+    return `<div class="crow${state.city===x.c?" on":""}" data-i="${i}" data-c="${x.c}">
+      <div class="name">${x.c}</div>
+      <div class="bar">${seg(x.done,"done")}${seg(x.can,"cancel")}${seg(x.plan,"plan")}</div>
+      <div class="rate${rate>=0.4?" hot":""}"><b>${pct(rate)}</b> отмен</div></div>`;
+  }).join("");
+  document.querySelectorAll("#cities .crow").forEach(el=>{
+    const x=data[+el.dataset.i];
+    el.onclick=()=>{state.city=state.city===x.c?"all":x.c;render();};
+    bindTip(el,()=>{const rev=x.done.reduce((a,o)=>a+o.p,0),lost=x.can.reduce((a,o)=>a+o.p,0);
+      return `<b>${x.c}</b><div class="tr"><span>Выполнено</span><span>${x.done.length}</span></div><div class="tr"><span>Отменено</span><span>${x.can.length}</span></div><div class="tr"><span>Запланировано</span><span>${x.plan.length}</span></div><div class="tr"><span>Выручка</span><span>${rub(rev)}</span></div><div class="tr"><span>Упущено</span><span>${rub(lost)}</span></div>`;});
+  });
+}
+
+// ---------- ПРИЧИНЫ ----------
+function renderReasons(){
+  const can=rows().filter(o=>o.st==="cancel");
+  const g={};can.forEach(o=>{(g[o.r]=g[o.r]||[]).push(o);});
+  const list=Object.entries(g).map(([k,a])=>({k,a,...REASONS[k]})).sort((a,b)=>b.a.length-a.a.length||(b.our-a.our));
+  const max=Math.max(1,...list.map(x=>x.a.length));
+  if(!list.length){$("#reasons").innerHTML=`<div class="empty">Отмен за выбранный период нет</div>`;$("#lostLine").textContent="";return;}
+  $("#reasons").innerHTML=list.map((x,i)=>`<div class="rrow${state.reason===x.k?" on":""}" data-i="${i}">
+     <div><div class="rtxt">${x.t}${x.our?'<span class="tag our">наша сторона</span>':''}</div>
+     <div class="rbar${x.our?"":" client"}" style="width:${x.a.length/max*100}%"></div></div>
+     <div class="rn">${x.a.length}</div></div>`).join("");
+  document.querySelectorAll("#reasons .rrow").forEach(el=>{const x=list[+el.dataset.i];
+    el.onclick=()=>{state.reason=state.reason===x.k?null:x.k;state.status=state.reason?"cancel":state.status;render();$("#orders").scrollIntoView({behavior:"smooth",block:"start"});};
+    bindTip(el,()=>`<b>${x.t}</b>`+x.a.map(o=>`<div class="tr"><span>${fdate(o.d)} · ${o.c}</span><span>${rub(o.p)}</span></div>`).join(""));
+  });
+  const mv=can.filter(o=>o.mv).length, our=can.filter(o=>REASONS[o.r].our);
+  $("#lostLine").innerHTML=`Из ${can.length} отмен: <b>${our.length}</b> по нашей вине (${rub(our.reduce((a,o)=>a+o.p,0))}), <b>${mv}</b> — после переноса даты.`;
+}
+
+// ---------- НЕДЕЛИ ----------
+function monday(d){const t=new Date(d+"T12:00:00");const w=(t.getDay()+6)%7;t.setDate(t.getDate()-w);return t.toISOString().slice(0,10);}
+function renderWeeks(){
+  const r=rows().filter(o=>o.d<="2026-10-04");
+  const far=rows().filter(o=>o.d>"2026-10-04");
+  const wk={};r.forEach(o=>{const m=monday(o.d);(wk[m]=wk[m]||{done:[],cancel:[],plan:[]})[o.st].push(o);});
+  // полный ряд недель от первой до последней
+  const keys=Object.keys(wk).sort();
+  if(!keys.length){$("#weeks").innerHTML=`<div class="empty">Нет данных</div>`;return;}
+  const all=[];let cur=new Date(keys[0]+"T12:00:00");const end=new Date(keys[keys.length-1]+"T12:00:00");
+  while(cur<=end){const k=cur.toISOString().slice(0,10);all.push({k,...(wk[k]||{done:[],cancel:[],plan:[]})});cur.setDate(cur.getDate()+7);}
+  const max=Math.max(1,...all.map(w=>w.done.length+w.cancel.length+w.plan.length));
+  const step=max>6?2:1, lines=[];for(let v=step;v<=max;v+=step)lines.push(v);
+  $("#weeks").innerHTML=`<div class="weeks">${lines.map(v=>`<div class="gridline" style="bottom:${v/max*100}%"><span>${v}</span></div>`).join("")}${all.map((w,i)=>{
+      const s=(a,c)=>a.length?`<div class="s ${c}" style="height:calc(${a.length/max*100}% - 2px)"></div>`:"";
+      return `<div class="wk" data-i="${i}">${s(w.done,"done")}${s(w.cancel,"cancel")}${s(w.plan,"plan")}</div>`;}).join("")}</div>
+    <div class="wlabels">${all.map(w=>`<div>${fdate(w.k)}</div>`).join("")}</div>
+    ${far.length?`<div class="small" style="margin-top:8px">+ ${far.length} заказ(а) позже 4 октября не показаны на графике</div>`:""}`;
+  document.querySelectorAll("#weeks .wk").forEach(el=>{const w=all[+el.dataset.i];
+    const e=new Date(w.k+"T12:00:00");e.setDate(e.getDate()+6);
+    bindTip(el,()=>`<b>Неделя ${fdate(w.k)}–${fdate(e.toISOString().slice(0,10))}</b><div class="tr"><span>Выполнено</span><span>${w.done.length}</span></div><div class="tr"><span>Отменено</span><span>${w.cancel.length}</span></div><div class="tr"><span>Запланировано</span><span>${w.plan.length}</span></div><div class="tr"><span>Выручка</span><span>${rub(w.done.reduce((a,o)=>a+o.p,0))}</span></div>`);
+  });
+}
+
+// ---------- ВОРОНКА ----------
+function renderFunnel(){
+  const leads=LEADS.filter(l=>state.test||!l.test);
+  const sep=ORDERS.filter(o=>o.d>="2026-09-01");
+  const cities=CITY_ORDER.filter(c=>state.city==="all"||c===state.city);
+  const rowsF=cities.map(c=>{const L=leads.filter(l=>l.c===c),O=sep.filter(o=>o.c===c);
+    const done=O.filter(o=>o.st==="done"),can=O.filter(o=>o.st==="cancel");
+    return {c,l:L.length,o:O.length,done:done.length,can:can.length,avg:L.filter(l=>l.m&&l.m<1000).length?L.filter(l=>l.m&&l.m<1000).reduce((a,l)=>a+l.p,0)/L.filter(l=>l.m&&l.m<1000).length:null};
+  }).filter(x=>x.l||x.o);
+  const T=rowsF.reduce((a,x)=>({l:a.l+x.l,o:a.o+x.o,done:a.done+x.done,can:a.can+x.can}),{l:0,o:0,done:0,can:0});
+  const hidden=LEADS.filter(l=>l.test&&(state.city==="all"||l.c===state.city)).length;
+  $("#funnel").innerHTML=`<thead><tr><th>Город</th><th class="num">Заявок</th><th class="num">Заказов</th><th class="num">Выполн.</th><th class="num">Отмен</th><th class="num">Ср. расчёт</th></tr></thead><tbody>`+
+    rowsF.map(x=>`<tr><td>${x.c}</td><td class="num">${x.l}</td><td class="num">${x.o}</td><td class="num">${x.done}</td><td class="num">${x.can?`<span class="flag">${x.can}</span>`:0}</td><td class="num">${x.avg?krub(x.avg):"—"}</td></tr>`).join("")+
+    `<tr><td><b>Итого</b></td><td class="num"><b>${T.l}</b></td><td class="num"><b>${T.o}</b></td><td class="num"><b>${T.done}</b></td><td class="num"><b>${T.can}</b></td><td></td></tr></tbody>`+
+    `<caption style="caption-side:bottom;text-align:left" class="small">${state.test?"Включены":"Скрыто"} ${hidden} похожих на тест расчётов (1 м², скидка 100%, 4 города в одну минуту, дубли). Заказы — сентябрьские; часть пришла не через калькулятор. Средний расчёт — без объектов крупнее 1000 м².</caption>`;
+}
+$("#showTest").onchange=e=>{state.test=e.target.checked;renderFunnel();};
+
+// ---------- ТАБЛИЦА ----------
+function renderStatus(){
+  const r=rows();
+  const opts=[["all","Все",r.length],["done","Выполнены",r.filter(o=>o.st==="done").length],["cancel","Отменены",r.filter(o=>o.st==="cancel").length],["plan","Запланированы",r.filter(o=>o.st==="plan").length]];
+  $("#fStatus").innerHTML=opts.map(([k,t,n])=>`<button class="chip" data-s="${k}" aria-pressed="${state.status===k}">${t}<span class="n">${n}</span></button>`).join("")+
+    (state.reason?`<button class="chip" data-clear="1" aria-pressed="true">Причина: ${REASONS[state.reason].t.slice(0,26)}… ✕</button>`:"");
+  document.querySelectorAll("#fStatus .chip").forEach(b=>b.onclick=()=>{if(b.dataset.clear){state.reason=null;}else{state.status=b.dataset.s;if(b.dataset.s!=="cancel")state.reason=null;}render();});
+}
+function renderOrders(){
+  let r=rows().filter(o=>state.status==="all"||o.st===state.status).filter(o=>!state.reason||o.r===state.reason);
+  const {k,dir}=state.sort;
+  r=[...r].sort((a,b)=>{const A=a[k]??-1,B=b[k]??-1;return (A>B?1:A<B?-1:0)*dir;});
+  const th=(key,t,cls="")=>`<th class="${cls}" data-k="${key}">${t}${k===key?(dir>0?" ↑":" ↓"):""}</th>`;
+  $("#orders").innerHTML=`<thead><tr>${th("d","Дата")}${th("c","Город")}${th("s","Услуга")}${th("m","м²","num")}${th("st","Статус")}${th("p","Сумма","num")}${th("pr","Прибыль","num")}<th>Комментарий</th></tr></thead><tbody>`+
+    (r.length?r.map(o=>`<tr><td class="num" style="text-align:left">${fdate(o.d)}</td><td>${o.c}</td><td>${o.s}</td><td class="num">${o.m??"—"}</td>
+      <td><span class="badge ${o.st}"><i>${ICO[o.st]}</i>${ST[o.st]}</span></td>
+      <td class="num">${rub(o.p)}</td><td class="num">${o.st==="done"||o.flag||o.r==="penalty"?`<span class="${o.flag?"flag":""}">${rub(o.pr)}</span>`:"—"}</td>
+      <td class="note">${o.r?`<b>${REASONS[o.r].t}.</b> `:""}${o.n?esc(o.n):""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">Нет заказов по фильтру</td></tr>`)+`</tbody>`;
+  document.querySelectorAll("#orders th[data-k]").forEach(h=>h.onclick=()=>{const kk=h.dataset.k;state.sort={k:kk,dir:state.sort.k===kk?-state.sort.dir:(kk==="d"||kk==="c"||kk==="s"||kk==="st"?1:-1)};renderOrders();});
+}
+
+// ---------- ВЫВОДЫ ----------
+function renderInsights(){
+  const sep=ORDERS.filter(o=>o.d.startsWith("2026-09")&&o.d<=TODAY);
+  const sd=sep.filter(o=>o.st==="done").length, sc=sep.filter(o=>o.st==="cancel").length;
+  const aug=ORDERS.filter(o=>o.d.startsWith("2026-08"));
+  const L=[
+   {lvl:"hi",h:`Сентябрь: отменяется почти каждый второй заказ`,p:`В августе 7 из 7 заказов выполнены. В сентябре — ${sd} выполнено и ${sc} отменено (${pct(sc/(sd+sc))}). 8 из 9 отмен пришлись на 12–23 сентября — как раз когда заработали Тула, Воронеж и Рязань.`,d:`Каждый день смотреть число отмен за неделю; цель — не выше 15–20%.`},
+   {lvl:"hi",h:`Тула: 2 из 2 закрытых заказов сорваны`,p:`21.09 клиент отменил после переноса, 22.09 бригада приехала плохо собранной, и заказ на 23 900 ₽ отменили на месте. В Туле пока нет проверенной команды. Заказ на 15.10 стоит с прибылью 100 ₽.`,d:`Не брать новые заказы в Туле без подтверждённого состава бригады; пересчитать заказ на 15.10.`},
+   {lvl:"hi",h:`2 отмены — по нашей вине (32 900 ₽)`,p:`Воронеж 23.09: в заявке стояло «потолки 3 м, нужна лестница», клинер приехал без неё. Тула 22.09: бригада собрана наспех. Обе ошибки видны заранее.`,d:`Вечером накануне сверять поле «Дополнительно» со списком инвентаря и составом бригады, клинер присылает фото собранного инвентаря.`},
+   {lvl:"mid",h:`Перенос даты — предвестник отмены`,p:`4 из 9 отменённых заказов перед этим переносились (Сочи, Воронеж, Тула, Липецк).`,d:`При переносе сразу фиксировать новую дату и брать предоплату/бронь; за 24 ч и за 2 ч — подтверждение в мессенджере.`},
+   {lvl:"mid",h:`Половина отмен — без записанной причины`,p:`У 4 отмен причина в календаре — просто «клиент отменил». Из-за этого непонятно, что именно не так: цена, время или клиент ушёл к другим.`,d:`Добавить в карточку обязательную строку «Причина отмены» из списка: цена / передумал / нашёл дешевле / перенёс / наша ошибка / не открыл.`},
+   {lvl:"mid",h:`Предоплата работает`,p:`Сочи 05.09 (заказ на 40 000 ₽) — клиент сорвался, но неустойка 6 000 ₽ покрыла выезд. В Новом Уренгое 14.09 клиент не открыл дверь — бригада съездила впустую, без компенсации.`,d:`Брать предоплату или бронь 1 000–2 000 ₽ на заказы от 15 000 ₽ и во всех новых городах.`},
+   {lvl:"ok",h:`Сочи и Липецк — опорные города`,p:`На них приходится 11 из 17 выполненных заказов и ~${Math.round((ORDERS.filter(o=>o.st==="done"&&(o.c==="Сочи"||o.c==="Липецк")).reduce((a,o)=>a+o.p,0))/ORDERS.filter(o=>o.st==="done").reduce((a,o)=>a+o.p,0)*100)}% выручки. Впереди в Сочи ещё 56 500 ₽ (24 и 26.09).`,d:`Держать там стабильные бригады и рекламу; новые города масштабировать только после того, как там будет своя проверенная команда.`},
+   {lvl:"ok",h:`Низкая маржа в северных городах`,p:`Новый Уренгой: 18 000 ₽ выручки → 4 000 ₽ прибыли (22%), Салехард — 26%. В Сочи маржа 43%, в Липецке 31%. Минимальный заказ 6 000 ₽ едва покрывает клинера.`,d:`Поднять минимальный заказ и ставку за м² для НУ/Салехарда.`},
+   {lvl:"ok",h:`Порядок в календаре`,p:`В карточках отмен и будущих заказов «чистая прибыль» часто равна цене; город в заголовке иногда не совпадает с карточкой (Сочи ↔ Воронеж); есть тестовые расчёты (1 м², скидка 100%, 4 города за минуту).`,d:`Удалять тестовые расчёты и держать единый формат: город — статус — причина.`}
+  ];
+  $("#insights").innerHTML=L.map(x=>`<div class="in ${x.lvl}"><div class="lvl">${x.lvl==="hi"?"Важно":x.lvl==="mid"?"Стоит поправить":"К сведению"}</div><h3>${x.h}</h3><p>${x.p}</p><div class="do">→ ${x.d}</div></div>`).join("");
+}
+
+function render(){renderFilters();renderKpis();renderCities();renderReasons();renderWeeks();renderFunnel();renderStatus();renderOrders();}
+renderInsights();render();
+</script>
+</body>
+</html>
