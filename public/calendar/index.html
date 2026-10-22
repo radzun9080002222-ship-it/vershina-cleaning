@@ -87,15 +87,12 @@ a{color:inherit}
 .icon-btn svg{width:18px;height:18px}
 .icon-btn.spin svg{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.filters{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 12px}
 .filters::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
 .chip b{font-weight:600;color:var(--muted);margin-left:4px}
 .chip.on{background:var(--ink);border-color:var(--ink);color:var(--page)}
 .chip.on b{color:color-mix(in srgb,var(--page) 70%,transparent)}
-.seg{display:flex;background:var(--soft);border-radius:12px;padding:3px;margin-bottom:10px}
-.seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:8px 6px;font-size:13px;font-weight:600;color:var(--muted)}
-.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
 
 /* ---------- лента ---------- */
 main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
@@ -154,6 +151,11 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .items.priced span{border:0;padding:0;font-size:13px}
 .items.priced span::before{content:"• ";color:var(--muted)}
 .day-h .sum{margin-left:auto;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums}
+.summary{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin:14px 2px 0;font-size:13px;color:var(--muted)}
+.summary b{color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
+.summary .pos b{color:var(--done)}
+.divider{display:flex;align-items:center;gap:10px;margin:30px 2px 0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.divider::after{content:"";flex:1;height:1px;background:var(--line)}
 .empty{text-align:center;padding:70px 20px;color:var(--muted)}
 .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
 .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:28px}
@@ -191,15 +193,12 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
       </div>
-      <div class="seg" id="seg">
-        <button data-v="upcoming" class="on">Предстоящие</button>
-        <button data-v="past">Прошедшие</button>
-      </div>
-      <div class="filters" id="cities"></div>
+      <div class="filters" id="periods"></div>
     </div>
   </header>
   <main class="wrap">
     <div id="banner" class="banner hidden"></div>
+    <div id="summary" class="summary hidden"></div>
     <div id="list"><div class="skeleton"></div><div class="skeleton"></div></div>
     <div class="foot">Время московское, для Нового Уренгоя и Салехарда — местное. Обновляется само каждые 30 секунд.<br><button id="logout">Выйти</button></div>
   </main>
@@ -225,8 +224,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   let savedPin = store.get(KEY);
   let orders = [];
   let lastOk = 0;
-  let view = store.get("vershina-staff-view") || "upcoming";
-  let city = store.get("vershina-staff-city") || "all";
+  let period = store.get("vershina-staff-period") || "today";
   let timer = null;
   let tick = null;
   let busy = false;
@@ -355,22 +353,40 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   };
 
   // ---------- отрисовка ----------
-  function visible() {
-    const startOfToday = new Date(dayKey(new Date()) + "T00:00:00+03:00").getTime();
-    return orders.filter((o) => {
-      const s = o.start ? new Date(o.start).getTime() : 0;
-      // «Предстоящие» — всё с сегодняшнего дня (включая уже выполненные сегодня); «Прошедшие» — раньше
-      const upcoming = s >= startOfToday;
-      return view === "upcoming" ? upcoming : !upcoming;
-    });
+  const PERIODS = [
+    ["today", "Сегодня"], ["tomorrow", "Завтра"], ["after", "Послезавтра"],
+    ["week", "Ближайшие 7 дней"], ["month", "Этот месяц"], ["all", "Все заказы"],
+  ];
+  const keyOf = (o) => (o.start ? dayKey(new Date(o.start)) : "");
+  const dayAt = (n) => dayKey(new Date(Date.now() + n * 86400000));
+  function inPeriod(o, p) {
+    const k = keyOf(o);
+    switch (p) {
+      case "today": return k === dayAt(0);
+      case "tomorrow": return k === dayAt(1);
+      case "after": return k === dayAt(2);
+      case "week": return k >= dayAt(0) && k < dayAt(7);
+      case "month": return k.slice(0, 7) === dayAt(0).slice(0, 7);
+      default: return true;
+    }
   }
-  function renderCities(list) {
-    const counts = {};
-    for (const o of list) counts[o.city || "Без города"] = (counts[o.city || "Без города"] || 0) + 1;
-    const names = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b, "ru"));
-    if (city !== "all" && !counts[city]) city = "all";
-    const chip = (key, label, n) => `<button class="chip${city === key ? " on" : ""}" data-c="${esc(key)}">${esc(label)}<b>${n}</b></button>`;
-    $("cities").innerHTML = chip("all", "Все города", list.length) + names.map((n) => chip(n, n, counts[n])).join("");
+  const countActive = (arr) => arr.filter((o) => o.status !== "cancel").length;
+  function renderPeriods() {
+    if (!PERIODS.some(([k]) => k === period)) period = "today";
+    $("periods").innerHTML = PERIODS.map(([k, label]) => {
+      const n = countActive(orders.filter((o) => inPeriod(o, k)));
+      return `<button class="chip${period === k ? " on" : ""}" data-p="${k}">${label}<b>${n}</b></button>`;
+    }).join("");
+  }
+  function renderSummary(list) {
+    const act = list.filter((o) => o.status !== "cancel");
+    const sum = (f) => act.reduce((a, o) => a + (o.money && o.money[f] != null ? o.money[f] : 0), 0);
+    const el = $("summary");
+    if (!act.length) { el.classList.add("hidden"); return; }
+    const hasMoney = act.some((o) => o.money);
+    el.innerHTML = `<span><b>${act.length}</b> ${plural(act.length, "заказ", "заказа", "заказов")}</span>` +
+      (hasMoney ? `<span>клиентам <b>${money(sum("client"))}</b></span><span>расходы <b>${money(sum("expenses"))}</b></span><span class="pos">прибыль <b>${money(sum("profit"))}</b></span>` : "");
+    el.classList.remove("hidden");
   }
   function card(o) {
     const now = Date.now();
@@ -414,43 +430,50 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       </div>
     </article>`;
   }
-  function render() {
-    const base = visible();
-    renderCities(base);
-    let list = city === "all" ? base : base.filter((o) => (o.city || "Без города") === city);
-    if (view === "past") list = list.slice().reverse();
-    if (!list.length) {
-      $("list").innerHTML = `<div class="empty"><b>${view === "upcoming" ? "Заказов пока нет" : "Прошедших заказов нет"}</b>${view === "upcoming" ? "Как только заказ появится в календаре, он будет здесь." : "Показываются последние 14 дней."}</div>`;
-      return;
-    }
+  function daySection(k, arr) {
+    const t = dayTitle(k);
+    const active = countActive(arr);
+    const daySum = arr.filter((o) => o.status !== "cancel" && o.money && o.money.client != null).reduce((a, o) => a + o.money.client, 0);
+    return `<section class="day"><div class="day-h"><h2 class="${t.today ? "today" : ""}">${esc(t.main)}</h2><span>${esc(t.sub)}${t.sub ? " · " : ""}${active} ${plural(active, "заказ", "заказа", "заказов")}</span>${daySum ? `<span class="sum">${money(daySum)}</span>` : ""}</div>${arr.map(card).join("")}</section>`;
+  }
+  function groupByDay(list) {
     const groups = new Map();
     for (const o of list) {
-      const k = o.start ? dayKey(new Date(o.start)) : "—";
+      const k = keyOf(o) || "—";
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(o);
     }
-    let html = "";
-    for (const [k, arr] of groups) {
-      const t = dayTitle(k);
-      const active = arr.filter((o) => o.status !== "cancel").length;
-      const daySum = arr.filter((o) => o.status !== "cancel" && o.money && o.money.client != null).reduce((a, o) => a + o.money.client, 0);
-      html += `<section class="day"><div class="day-h"><h2 class="${t.today ? "today" : ""}">${esc(t.main)}</h2><span>${esc(t.sub)}${t.sub ? " · " : ""}${active} ${plural(active, "заказ", "заказа", "заказов")}</span>${daySum ? `<span class="sum">${money(daySum)}</span>` : ""}</div>${arr.map(card).join("")}</section>`;
+    return [...groups].map(([k, arr]) => daySection(k, arr)).join("");
+  }
+  const EMPTY = {
+    today: "На сегодня заказов нет", tomorrow: "На завтра заказов нет", after: "На послезавтра заказов нет",
+    week: "На ближайшие 7 дней заказов нет", month: "В этом месяце заказов нет", all: "Заказов пока нет",
+  };
+  function render() {
+    renderPeriods();
+    const list = orders.filter((o) => inPeriod(o, period));
+    renderSummary(list);
+    if (!list.length) {
+      $("list").innerHTML = `<div class="empty"><b>${EMPTY[period]}</b>Как только заказ появится в календаре, он будет здесь.</div>`;
+      return;
     }
-    $("list").innerHTML = html;
+    if (period === "all" || period === "month") {
+      // сначала сегодня и дальше, потом прошедшие — от свежих к старым
+      const today = dayAt(0);
+      const ahead = list.filter((o) => keyOf(o) >= today);
+      const past = list.filter((o) => keyOf(o) < today).reverse();
+      $("list").innerHTML = groupByDay(ahead) + (past.length ? `<div class="divider">Прошедшие</div>${groupByDay(past)}` : "");
+    } else {
+      $("list").innerHTML = groupByDay(list);
+    }
   }
   const plural = (n, a, b, c) => (n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c);
 
   // ---------- управление ----------
-  $("cities").addEventListener("click", (e) => {
-    const c = e.target.closest("button")?.dataset.c;
-    if (!c) return;
-    city = c; store.set("vershina-staff-city", c); render();
-  });
-  $("seg").addEventListener("click", (e) => {
-    const v = e.target.closest("button")?.dataset.v;
-    if (!v) return;
-    view = v; store.set("vershina-staff-view", v);
-    [...$("seg").children].forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  $("periods").addEventListener("click", (e) => {
+    const p = e.target.closest("button")?.dataset.p;
+    if (!p) return;
+    period = p; store.set("vershina-staff-period", p);
     render(); scrollTo({ top: 0 });
   });
   $("refresh").addEventListener("click", () => refresh(true));
@@ -461,7 +484,6 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   function showApp() {
     $("pinView").classList.add("hidden");
     $("appView").classList.remove("hidden");
-    [...$("seg").children].forEach((b) => b.classList.toggle("on", b.dataset.v === view));
     clearInterval(timer);
     timer = setInterval(() => { if (!document.hidden) refresh(); else paintLive(); }, POLL_MS);
     if (!tick) tick = setInterval(() => { paintLive(); if (orders.length) render(); }, 60000); // «идёт сейчас» и «сегодня» без запроса
