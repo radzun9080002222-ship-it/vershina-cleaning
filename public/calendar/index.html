@@ -165,6 +165,60 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .row .txt{flex:1}
 @media (max-width:520px){.call{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%}.call span{display:none}.call svg{width:17px;height:17px}}
 @media (max-width:380px){.card{grid-template-columns:52px 1fr;gap:11px;padding:14px}.pad{grid-template-columns:repeat(3,70px)}.pad button{height:70px}}
+/* ---------- полный календарь (как Google Календарь на телефоне) ---------- */
+.cal-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:11px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;flex:none}
+.cal-btn svg{width:17px;height:17px}
+.cal{position:fixed;inset:0;z-index:20;background:var(--surface);display:flex;flex-direction:column}
+.cal-top{display:flex;align-items:center;gap:6px;padding:8px 10px 6px;padding-top:calc(8px + env(safe-area-inset-top));border-bottom:1px solid var(--line)}
+.cal-top h2{margin:0 0 0 2px;font-size:20px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ic{width:38px;height:38px;border-radius:50%;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;flex:none;color:var(--ink2)}
+.cal-ic:active{background:var(--soft)}
+.cal-ic svg{width:22px;height:22px}
+.cal-today{position:relative}
+.cal-today b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-top:4px;font-size:10px;font-weight:700}
+.cal-views{display:flex;gap:4px;padding:6px 10px 8px;border-bottom:1px solid var(--line)}
+.cal-views button{flex:1;border:0;background:var(--soft);border-radius:9px;padding:7px 4px;font-size:12.5px;font-weight:600;color:var(--ink2)}
+.cal-views button.on{background:var(--ink);color:var(--surface)}
+.cal-heads{display:grid;border-bottom:1px solid var(--line);flex:none}
+.cal-head{text-align:center;padding:6px 0 7px;cursor:pointer;min-width:0}
+.cal-head span{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:lowercase}
+.cal-head b{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin-top:2px;border-radius:50%;font-size:18px;font-weight:500}
+.cal-head.today span{color:var(--plan)}
+.cal-head.today b{background:var(--plan);color:#fff}
+.cal-allday{display:grid;border-bottom:1px solid var(--line);flex:none}
+.cal-allday .cal-cell{padding:2px;display:grid;gap:2px;min-width:0}
+.cal-scroll{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.cal-grid{display:grid;position:relative}
+.cal-hours{position:relative}
+.cal-hours span{position:absolute;right:6px;font-size:10.5px;color:var(--muted);transform:translateY(-50%);white-space:nowrap}
+.cal-col{position:relative;border-left:1px solid var(--line);background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% var(--hh)}
+.cal-ev{position:absolute;border-radius:6px;padding:3px 5px;overflow:hidden;color:#fff;font-size:11px;line-height:1.25;cursor:pointer;border:1px solid var(--surface);box-sizing:border-box;text-align:left}
+.cal-ev b{display:block;font-weight:600;font-size:11.5px;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto}
+.cal-ev i{font-style:normal;display:block;opacity:.92;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto}
+.cal-ev.cancel{opacity:.55}
+.cal-ev.cancel b{text-decoration:line-through}
+.cal-ev.dark{color:#202124}
+.cal-now{position:absolute;left:0;right:0;height:2px;background:#ea4335;z-index:3;pointer-events:none}
+.cal-now::before{content:"";position:absolute;left:-6px;top:-5px;width:12px;height:12px;border-radius:50%;background:#ea4335}
+.cal-chip{display:block;border-radius:4px;padding:1px 4px;font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cal-chip.dark{color:#202124}
+.cal-chip.cancel{opacity:.55;text-decoration:line-through}
+.cal-month{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr;overflow:hidden}
+.cal-mhead{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line);flex:none}
+.cal-mhead span{text-align:center;font-size:11px;font-weight:600;color:var(--muted);padding:6px 0}
+.cal-day{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:3px 2px;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:2px;cursor:pointer}
+.cal-day:nth-child(7n){border-right:0}
+.cal-day .n{align-self:center;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:500;flex:none}
+.cal-day.other .n{color:var(--muted)}
+.cal-day.today .n{background:var(--plan);color:#fff}
+.cal-day .more{font-size:10px;font-weight:600;color:var(--muted);padding-left:3px}
+.sheet-bg{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.38);animation:fade .15s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:31;max-height:88vh;overflow-y:auto;background:var(--page);border-radius:18px 18px 0 0;padding:8px 12px calc(16px + env(safe-area-inset-bottom));animation:up .2s ease-out;max-width:780px;margin:0 auto}
+.sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:2px auto 10px}
+.sheet .card{margin-bottom:0}
+.sheet-close{display:block;width:100%;margin-top:10px;border:0;background:var(--surface);border-radius:12px;padding:12px;font-weight:600;box-shadow:var(--shadow)}
+@keyframes fade{from{opacity:0}}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
 </style>
 </head>
 <body>
@@ -189,6 +243,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       <div class="bar">
         <img src="/apple-touch-icon.png" alt="">
         <h1>Заказы<small class="live" id="live"><i></i><span id="liveText">загрузка…</span></small></h1>
+        <button class="cal-btn" id="openCal" aria-label="Открыть полный календарь"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg>Календарь</button>
         <button class="icon-btn" id="refresh" aria-label="Обновить">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
@@ -203,6 +258,21 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     <div class="foot">Время московское, для Нового Уренгоя и Салехарда — местное. Обновляется само каждые 30 секунд.<br><button id="logout">Выйти</button></div>
   </main>
 </section>
+
+<section class="cal hidden" id="calView" aria-label="Календарь">
+  <div class="cal-top">
+    <button class="cal-ic" id="calBack" aria-label="Назад к списку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <h2 id="calTitle">Календарь</h2>
+    <button class="cal-ic" id="calPrev" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="cal-ic" id="calNext" aria-label="Вперёд"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+    <button class="cal-ic cal-today" id="calToday" aria-label="Сегодня"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg><b id="calTodayNum"></b></button>
+  </div>
+  <div class="cal-views" id="calViews">
+    <button data-v="day">День</button><button data-v="3day">3 дня</button><button data-v="week">Неделя</button><button data-v="month">Месяц</button>
+  </div>
+  <div id="calBody" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
+</section>
+<div id="sheetRoot"></div>
 
 <script>
 (() => {
@@ -300,6 +370,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     orders = (data.orders || []).slice().sort((a, b) => (a.start || "").localeCompare(b.start || ""));
     lastOk = Date.now();
     render();
+    if (typeof renderCal === "function") renderCal();
     paintLive();
   }
   function showBanner(t) { const b = $("banner"); b.textContent = t; b.classList.remove("hidden"); }
@@ -486,16 +557,195 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     $("appView").classList.remove("hidden");
     clearInterval(timer);
     timer = setInterval(() => { if (!document.hidden) refresh(); else paintLive(); }, POLL_MS);
-    if (!tick) tick = setInterval(() => { paintLive(); if (orders.length) render(); }, 60000); // «идёт сейчас» и «сегодня» без запроса
+    if (!tick) tick = setInterval(() => { paintLive(); if (orders.length) { render(); renderCal(); } }, 60000); // «идёт сейчас» и «сегодня» без запроса
   }
   function logout(msg) {
+    if (calOpen) closeCal();
     savedPin = null; store.del(KEY); clearInterval(timer); orders = []; pin = "";
     $("appView").classList.add("hidden"); $("pinView").classList.remove("hidden");
     $("list").innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
     paintDots(); $("pinMsg").textContent = msg || "";
   }
 
-  if (savedPin) { showApp(); refresh(); }
+  // ---------- полный календарь ----------
+  const GCOLOR = { 1: "#7986cb", 2: "#33b679", 3: "#8e24aa", 4: "#e67c73", 5: "#f6bf26", 6: "#f4511e", 7: "#039be5", 8: "#616161", 9: "#3f51b5", 10: "#0b8043", 11: "#d50000" };
+  const STATUS_COLOR = { done: "2", cancel: "11", plan: "7", open: "5", partial: "6", moved: "1" };
+  const evColor = (o) => GCOLOR[o.color] || GCOLOR[STATUS_COLOR[o.status]] || GCOLOR[7];
+  const isDark = (o) => (o.color || STATUS_COLOR[o.status]) === "5";
+  const MSK = 3 * 3600000; // Москва без перехода на летнее время
+  const mskKey = (ms) => new Date(ms + MSK).toISOString().slice(0, 10);
+  const mskMin = (ms) => { const d = new Date(ms + MSK); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+  const addDays = (key, n) => { const d = new Date(key + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const wday = (key) => (new Date(key + "T00:00:00Z").getUTCDay() + 6) % 7; // пн = 0
+  const fWd = new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "UTC" });
+  const fMonth = new Intl.DateTimeFormat("ru-RU", { month: "long", timeZone: "UTC" });
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const HH = 52; // высота часа, px
+  const WD = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+
+  let calOpen = false;
+  let calMode = store.get("vershina-staff-calview") || "3day";
+  let calDate = mskKey(Date.now());
+  let calScrolled = false;
+
+  function calDays() {
+    if (calMode === "day") return [calDate];
+    if (calMode === "3day") return [0, 1, 2].map((i) => addDays(calDate, i));
+    const mon = addDays(calDate, -wday(calDate));
+    return [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(mon, i));
+  }
+  function calTitle(days) {
+    const y = calDate.slice(0, 4), yNow = mskKey(Date.now()).slice(0, 4);
+    const m1 = cap(fMonth.format(new Date((calMode === "month" ? calDate : days[0]) + "T00:00:00Z")));
+    const last = days[days.length - 1];
+    let t = m1;
+    if (calMode !== "month" && last.slice(5, 7) !== days[0].slice(5, 7)) t = m1.slice(0, 3) + " – " + cap(fMonth.format(new Date(last + "T00:00:00Z"))).slice(0, 3);
+    return y !== yNow ? `${t} ${y}` : t;
+  }
+  const ordersOn = (key) => orders.filter((o) => o.start && mskKey(new Date(o.start).getTime()) === key);
+
+  /** Раскладка пересекающихся событий по колонкам, как в Google. */
+  function layout(list) {
+    const items = list.filter((o) => !o.allDay).map((o) => {
+      const s = new Date(o.start).getTime();
+      const e = o.end ? new Date(o.end).getTime() : s + 3600000;
+      const sm = mskMin(s);
+      let em = mskKey(e) !== mskKey(s) ? 1440 : mskMin(e);
+      if (em <= sm) em = Math.min(1440, sm + 30);
+      return { o, sm, em };
+    }).sort((a, b) => a.sm - b.sm || b.em - a.em);
+    const out = [];
+    let cluster = [], end = -1;
+    const flush = () => {
+      const cols = [];
+      for (const it of cluster) {
+        let c = cols.findIndex((last) => last <= it.sm);
+        if (c < 0) { c = cols.length; cols.push(0); }
+        cols[c] = it.em; it.col = c;
+      }
+      for (const it of cluster) { it.cols = cols.length; out.push(it); }
+      cluster = [];
+    };
+    for (const it of items) {
+      if (cluster.length && it.sm >= end) { flush(); end = -1; }
+      cluster.push(it); end = Math.max(end, it.em);
+    }
+    if (cluster.length) flush();
+    return out;
+  }
+  function evBlock(it) {
+    const o = it.o;
+    const h = Math.max(((it.em - it.sm) / 60) * HH - 2, 20);
+    const w = 100 / it.cols;
+    const t = `${fmtTime(new Date(o.start))}${o.end ? "–" + fmtTime(new Date(o.end)) : ""}`;
+    const sub = [o.city, o.address].filter(Boolean).join(", ");
+    return `<div class="cal-ev${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}"
+      style="top:${(it.sm / 60) * HH + 1}px;height:${h}px;left:calc(${w * it.col}% + 1px);width:calc(${w}% - 3px);background:${evColor(o)}">
+      <b>${esc(o.service || "Заказ")}${o.area ? " · " + esc(String(o.area)) + " м²" : ""}</b>
+      ${h > 34 ? `<i>${t}</i>` : ""}${h > 50 && sub ? `<i>${esc(sub)}</i>` : ""}</div>`;
+  }
+  function chip(o) {
+    return `<span class="cal-chip${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}" style="background:${evColor(o)}">${esc(o.city || o.service || "Заказ")}</span>`;
+  }
+  function renderTimeGrid(days) {
+    const today = mskKey(Date.now());
+    const cols = `46px repeat(${days.length}, minmax(0, 1fr))`;
+    const heads = `<div class="cal-heads" style="grid-template-columns:${cols}"><div></div>${days.map((k) =>
+      `<div class="cal-head${k === today ? " today" : ""}" data-day="${k}"><span>${WD[wday(k)]}</span><b>${Number(k.slice(8))}</b></div>`).join("")}</div>`;
+    const allDay = days.map((k) => ordersOn(k).filter((o) => o.allDay));
+    const allDayRow = allDay.some((a) => a.length) ? `<div class="cal-allday" style="grid-template-columns:${cols}"><div></div>${allDay.map((a) => `<div class="cal-cell">${a.map(chip).join("")}</div>`).join("")}</div>` : "";
+    let hours = "";
+    for (let h = 1; h < 24; h++) hours += `<span style="top:${h * HH}px">${String(h).padStart(2, "0")}:00</span>`;
+    const nowMin = mskMin(Date.now());
+    const colsHtml = days.map((k) => `<div class="cal-col" data-day="${k}">${layout(ordersOn(k)).map(evBlock).join("")}${k === today ? `<div class="cal-now" style="top:${(nowMin / 60) * HH}px"></div>` : ""}</div>`).join("");
+    const prevScroll = $("calScroll")?.scrollTop;
+    $("calBody").innerHTML = `${heads}${allDayRow}<div class="cal-scroll" id="calScroll"><div class="cal-grid" style="grid-template-columns:${cols};height:${24 * HH}px;--hh:${HH}px"><div class="cal-hours">${hours}</div>${colsHtml}</div></div>`;
+    const sc = $("calScroll");
+    if (!calScrolled) {
+      const hasToday = days.includes(today);
+      sc.scrollTop = Math.max(0, ((hasToday ? nowMin / 60 - 1.5 : 7)) * HH);
+      calScrolled = true;
+    } else if (prevScroll != null) sc.scrollTop = prevScroll;
+  }
+  function renderMonth() {
+    const today = mskKey(Date.now());
+    const first = calDate.slice(0, 8) + "01";
+    const start = addDays(first, -wday(first));
+    const nextMonth = addDays(first, 32).slice(0, 8) + "01";
+    const weeks = Math.ceil((wday(first) + (new Date(nextMonth + "T00:00:00Z") - new Date(first + "T00:00:00Z")) / 86400000) / 7);
+    let cells = "";
+    for (let i = 0; i < weeks * 7; i++) {
+      const k = addDays(start, i);
+      const list = ordersOn(k).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+      const max = weeks > 5 ? 2 : 3;
+      cells += `<div class="cal-day${k.slice(0, 7) !== first.slice(0, 7) ? " other" : ""}${k === today ? " today" : ""}" data-day="${k}">
+        <span class="n">${Number(k.slice(8))}</span>${list.slice(0, max).map(chip).join("")}${list.length > max ? `<span class="more">ещё ${list.length - max}</span>` : ""}</div>`;
+    }
+    $("calBody").innerHTML = `<div class="cal-mhead">${WD.map((d) => `<span>${d}</span>`).join("")}</div><div class="cal-month" style="grid-template-rows:repeat(${weeks},1fr)">${cells}</div>`;
+  }
+  function renderCal() {
+    if (!calOpen) return;
+    [...$("calViews").children].forEach((b) => b.classList.toggle("on", b.dataset.v === calMode));
+    $("calTodayNum").textContent = Number(mskKey(Date.now()).slice(8));
+    const days = calDays();
+    $("calTitle").textContent = calTitle(days);
+    if (calMode === "month") renderMonth(); else renderTimeGrid(days);
+  }
+  function calShift(dir) {
+    if (calMode === "month") { const d = new Date(calDate.slice(0, 8) + "01T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() + dir); calDate = d.toISOString().slice(0, 10); }
+    else calDate = addDays(calDate, dir * (calMode === "day" ? 1 : calMode === "3day" ? 3 : 7));
+    renderCal();
+  }
+  function openCal(push = true) {
+    calOpen = true; calScrolled = false; calDate = mskKey(Date.now());
+    $("calView").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    if (push) try { history.pushState({ cal: 1 }, "", "#calendar"); } catch {}
+    renderCal();
+  }
+  function closeCal(fromPop = false) {
+    calOpen = false; closeSheet();
+    $("calView").classList.add("hidden");
+    document.body.style.overflow = "";
+    if (!fromPop && location.hash === "#calendar") try { history.back(); } catch {}
+  }
+  function openSheet(id) {
+    const o = orders.find((x) => x.id === id);
+    if (!o) return;
+    $("sheetRoot").innerHTML = `<div class="sheet-bg" id="sheetBg"></div><div class="sheet" role="dialog"><div class="grab"></div>${card(o)}<button class="sheet-close" id="sheetClose">Закрыть</button></div>`;
+    $("sheetBg").onclick = closeSheet; $("sheetClose").onclick = closeSheet;
+  }
+  function closeSheet() { $("sheetRoot").innerHTML = ""; }
+
+  $("openCal").addEventListener("click", () => openCal());
+  $("calBack").addEventListener("click", () => closeCal());
+  $("calPrev").addEventListener("click", () => calShift(-1));
+  $("calNext").addEventListener("click", () => calShift(1));
+  $("calToday").addEventListener("click", () => { calDate = mskKey(Date.now()); calScrolled = false; renderCal(); });
+  $("calViews").addEventListener("click", (e) => {
+    const v = e.target.closest("button")?.dataset.v;
+    if (!v) return;
+    calMode = v; store.set("vershina-staff-calview", v); calScrolled = false; renderCal();
+  });
+  $("calBody").addEventListener("click", (e) => {
+    const ev = e.target.closest("[data-id]");
+    if (ev) { e.stopPropagation(); openSheet(ev.dataset.id); return; }
+    const head = e.target.closest(".cal-head, .cal-day");
+    if (head) { calDate = head.dataset.day; calMode = "day"; store.set("vershina-staff-calview", "day"); calScrolled = false; renderCal(); }
+  });
+  // свайп влево/вправо — как в Google Календаре
+  let tx = null, ty = null;
+  $("calBody").addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  $("calBody").addEventListener("touchend", (e) => {
+    if (tx == null) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    tx = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) calShift(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  window.addEventListener("popstate", () => { if (calOpen && location.hash !== "#calendar") closeCal(true); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("sheetRoot").innerHTML) closeSheet(); else if (calOpen) closeCal(); } });
+
+  if (savedPin) { showApp(); refresh(); if (location.hash === "#calendar") openCal(false); }
 })();
 </script>
 </body>
