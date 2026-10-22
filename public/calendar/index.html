@@ -113,6 +113,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .time{font-variant-numeric:tabular-nums}
 .time b{display:block;font-size:17px;font-weight:700;line-height:1.2}
 .time span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.time .loc{display:inline-block;margin-top:5px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:2px 5px;border-radius:5px}
 .time .bar-v{width:3px;border-radius:2px;background:var(--line);margin:8px 0 0 2px;height:calc(100% - 46px);min-height:14px}
 .card.now .time .bar-v{background:var(--now)}
 .body{min-width:0}
@@ -188,7 +189,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   <main class="wrap">
     <div id="banner" class="banner hidden"></div>
     <div id="list"><div class="skeleton"></div><div class="skeleton"></div></div>
-    <div class="foot">Время — как в календаре (МСК). Обновляется само каждые 30 секунд.<br><button id="logout">Выйти</button></div>
+    <div class="foot">Время московское, для Нового Уренгоя и Салехарда — местное. Обновляется само каждые 30 секунд.<br><button id="logout">Выйти</button></div>
   </main>
 </section>
 
@@ -301,6 +302,15 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 
   // ---------- форматирование ----------
   const fTime = new Intl.DateTimeFormat("ru-RU", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+  // Города не по Москве: время заказа показываем по местному, чтобы бригада не опоздала
+  const CITY_TZ = { "Новый Уренгой": "Asia/Yekaterinburg", "Салехард": "Asia/Yekaterinburg" };
+  const fLocal = {};
+  const localTime = (d, city) => {
+    const tz = CITY_TZ[city];
+    if (!tz) return fTime.format(d);
+    fLocal[tz] = fLocal[tz] || new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
+    return fLocal[tz].format(d);
+  };
   const fDayKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
   const fDay = new Intl.DateTimeFormat("ru-RU", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
   const fmtTime = (d) => fTime.format(d);
@@ -366,7 +376,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     const items = (o.items || []).filter((it, i) => !(i === 0 && o.service && it.toLowerCase().startsWith(o.service.toLowerCase())));
     return `<article class="card${isNow ? " now" : ""}${o.status === "cancel" ? " cancel" : ""}">
       <div class="time">
-        ${o.allDay ? "<b>Весь</b><span>день</span>" : `<b>${s ? fmtTime(s) : "—"}</b><span>${e ? "до " + fmtTime(e) : ""}</span>`}
+        ${o.allDay ? "<b>Весь</b><span>день</span>" : `<b>${s ? localTime(s, o.city) : "—"}</b><span>${e ? "до " + localTime(e, o.city) : ""}</span>${CITY_TZ[o.city] ? '<span class="loc">местное</span>' : ""}`}
         <div class="bar-v"></div>
       </div>
       <div class="body">
