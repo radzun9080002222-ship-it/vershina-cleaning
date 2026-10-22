@@ -140,8 +140,20 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .items span{font-size:12.5px;padding:4px 9px;border-radius:8px;border:1px solid var(--line);color:var(--ink2)}
 .notes{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:13.5px;color:var(--ink);white-space:pre-line;overflow-wrap:anywhere}
 .notes::before{content:"Пометки";display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
-.price{margin-top:10px;font-size:13.5px;color:var(--ink2)}
-.price b{color:var(--ink)}
+.ctitle{margin-top:3px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.money{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.money div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.money span{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.money b{display:block;font-size:15px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.money small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.money .main{background:var(--brand-soft);border-color:transparent}
+.money .main b{color:var(--brand-dark)}
+.money .pos b{color:var(--done)}
+.money .neg b{color:var(--cancel)}
+.items.priced{display:grid;gap:4px}
+.items.priced span{border:0;padding:0;font-size:13px}
+.items.priced span::before{content:"• ";color:var(--muted)}
+.day-h .sum{margin-left:auto;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums}
 .empty{text-align:center;padding:70px 20px;color:var(--muted)}
 .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
 .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:28px}
@@ -373,7 +385,16 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     if (o.address) rows.push(`<div class="row">${ICON.pin}<span class="txt"><a href="https://yandex.ru/maps/?text=${mapQ}" target="_blank" rel="noopener">${esc(addr)}</a></span></div>`);
     if (o.client || o.phone) rows.push(`<div class="row">${ICON.user}<span class="txt">${esc(o.client || "Клиент")}${o.phone ? `<span class="ph">${esc(prettyPhone(o.phone))}</span>` : ""}</span>${o.phone ? `<a class="call" href="tel:${esc(o.phone)}" aria-label="Позвонить">${ICON.phone}<span>Позвонить</span></a>` : ""}</div>`);
     if (o.duration) rows.push(`<div class="row">${ICON.clock}<span class="txt">${esc(o.duration)}</span></div>`);
-    const items = (o.items || []).filter((it, i) => !(i === 0 && o.service && it.toLowerCase().startsWith(o.service.toLowerCase())));
+    const items = o.money ? (o.items || []) : (o.items || []).filter((it, i) => !(i === 0 && o.service && it.toLowerCase().startsWith(o.service.toLowerCase())));
+    const m = o.money;
+    const cell = (label, val, cls = "", sub = "") => val == null ? "" : `<div class="${cls}"><span>${label}</span><b>${money(val)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
+    const moneyHtml = m ? `<div class="money">
+        ${cell(m.corrected ? "Оплатил" : "Клиенту", m.client, "main", m.discount || "")}
+        ${m.list != null && m.list !== m.client ? cell("По прайсу", m.list) : ""}
+        ${cell("Расходы", m.expenses)}
+        ${cell("Прибыль", m.profit, m.profit < 0 ? "neg" : "pos")}
+      </div>` : "";
+    const showTitle = o.title && o.title.trim().toLowerCase() !== [o.service, o.area ? o.area + " м²" : ""].filter(Boolean).join(", ").toLowerCase();
     return `<article class="card${isNow ? " now" : ""}${o.status === "cancel" ? " cancel" : ""}">
       <div class="time">
         ${o.allDay ? "<b>Весь</b><span>день</span>" : `<b>${s ? localTime(s, o.city) : "—"}</b><span>${e ? "до " + localTime(e, o.city) : ""}</span>${CITY_TZ[o.city] ? '<span class="loc">местное</span>' : ""}`}
@@ -385,10 +406,11 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
           ${isNow ? '<span class="tag st-now">Идёт сейчас</span>' : st ? `<span class="tag ${st[1]}">${st[0]}</span>` : ""}
         </div>
         <h3 class="svc">${title}</h3>
+        ${showTitle ? `<div class="ctitle">${esc(o.title)}</div>` : ""}
         ${rows.length ? `<div class="rows">${rows.join("")}</div>` : ""}
-        ${items.length ? `<div class="items">${items.map((i) => `<span>${esc(i)}</span>`).join("")}</div>` : ""}
+        ${items.length ? `<div class="items${o.money ? " priced" : ""}">${items.map((i) => `<span>${esc(i).replace(/(\d) (?=\d)/g, "$1&nbsp;").replace(/ ₽/g, "&nbsp;₽")}</span>`).join("")}</div>` : ""}
         ${o.notes ? `<div class="notes">${esc(o.notes)}</div>` : ""}
-        ${o.clientPrice != null ? `<div class="price">К оплате клиентом: <b>${money(o.clientPrice)}</b></div>` : ""}
+        ${moneyHtml}
       </div>
     </article>`;
   }
@@ -411,7 +433,8 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     for (const [k, arr] of groups) {
       const t = dayTitle(k);
       const active = arr.filter((o) => o.status !== "cancel").length;
-      html += `<section class="day"><div class="day-h"><h2 class="${t.today ? "today" : ""}">${esc(t.main)}</h2><span>${esc(t.sub)}${t.sub ? " · " : ""}${active} ${plural(active, "заказ", "заказа", "заказов")}</span></div>${arr.map(card).join("")}</section>`;
+      const daySum = arr.filter((o) => o.status !== "cancel" && o.money && o.money.client != null).reduce((a, o) => a + o.money.client, 0);
+      html += `<section class="day"><div class="day-h"><h2 class="${t.today ? "today" : ""}">${esc(t.main)}</h2><span>${esc(t.sub)}${t.sub ? " · " : ""}${active} ${plural(active, "заказ", "заказа", "заказов")}</span>${daySum ? `<span class="sum">${money(daySum)}</span>` : ""}</div>${arr.map(card).join("")}</section>`;
     }
     $("list").innerHTML = html;
   }
