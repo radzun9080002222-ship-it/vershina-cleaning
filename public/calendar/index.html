@@ -198,6 +198,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .cal-ev.cancel{opacity:.55}
 .cal-ev.cancel b{text-decoration:line-through}
 .cal-ev.dark{color:#202124}
+.cal-ev.n b,.cal-ev.n i{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-hyphens:none;hyphens:none}
 .cal-now{position:absolute;left:0;right:0;height:2px;background:#ea4335;z-index:3;pointer-events:none}
 .cal-now::before{content:"";position:absolute;left:-6px;top:-5px;width:12px;height:12px;border-radius:50%;background:#ea4335}
 .cal-chip{display:block;border-radius:4px;padding:1px 4px;font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
@@ -633,16 +634,18 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     if (cluster.length) flush();
     return out;
   }
-  function evBlock(it) {
+  function evBlock(it, nDays) {
     const o = it.o;
+    const narrow = nDays * it.cols >= 5; // колонка уже ~70px — коротко, как Google
     const h = Math.max(((it.em - it.sm) / 60) * HH - 2, 20);
     const w = 100 / it.cols;
     const t = `${fmtTime(new Date(o.start))}${o.end ? "–" + fmtTime(new Date(o.end)) : ""}`;
     const sub = [o.city, o.address].filter(Boolean).join(", ");
-    return `<div class="cal-ev${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}"
+    return `<div class="cal-ev${narrow ? " n" : ""}${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}"
       style="top:${(it.sm / 60) * HH + 1}px;height:${h}px;left:calc(${w * it.col}% + 1px);width:calc(${w}% - 3px);background:${evColor(o)}">
-      <b>${esc(o.service || "Заказ")}${o.area ? " · " + esc(String(o.area)) + " м²" : ""}</b>
-      ${h > 34 ? `<i>${t}</i>` : ""}${h > 50 && sub ? `<i>${esc(sub)}</i>` : ""}</div>`;
+      ${narrow
+        ? `<b>${esc(o.city || o.service || "Заказ")}</b>${h > 34 ? `<i>${fmtTime(new Date(o.start))}</i>` : ""}${h > 60 && o.area ? `<i>${esc(String(o.area))} м²</i>` : ""}`
+        : `<b>${esc(o.service || "Заказ")}${o.area ? " · " + esc(String(o.area)) + " м²" : ""}</b>${h > 34 ? `<i>${t}</i>` : ""}${h > 50 && sub ? `<i>${esc(sub)}</i>` : ""}`}</div>`;
   }
   function chip(o) {
     return `<span class="cal-chip${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}" style="background:${evColor(o)}">${esc(o.city || o.service || "Заказ")}</span>`;
@@ -657,7 +660,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     let hours = "";
     for (let h = 1; h < 24; h++) hours += `<span style="top:${h * HH}px">${String(h).padStart(2, "0")}:00</span>`;
     const nowMin = mskMin(Date.now());
-    const colsHtml = days.map((k) => `<div class="cal-col" data-day="${k}">${layout(ordersOn(k)).map(evBlock).join("")}${k === today ? `<div class="cal-now" style="top:${(nowMin / 60) * HH}px"></div>` : ""}</div>`).join("");
+    const colsHtml = days.map((k) => `<div class="cal-col" data-day="${k}">${layout(ordersOn(k)).map((it) => evBlock(it, days.length)).join("")}${k === today ? `<div class="cal-now" style="top:${(nowMin / 60) * HH}px"></div>` : ""}</div>`).join("");
     const prevScroll = $("calScroll")?.scrollTop;
     $("calBody").innerHTML = `${heads}${allDayRow}<div class="cal-scroll" id="calScroll"><div class="cal-grid" style="grid-template-columns:${cols};height:${24 * HH}px;--hh:${HH}px"><div class="cal-hours">${hours}</div>${colsHtml}</div></div>`;
     const sc = $("calScroll");
