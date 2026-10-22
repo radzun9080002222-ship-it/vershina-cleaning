@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /calendar
+Disallow: /total
 
 Sitemap: https://vershina-cleaning.ru/sitemap.xml
