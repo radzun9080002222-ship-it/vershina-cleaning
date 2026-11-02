@@ -427,7 +427,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   // ---------- отрисовка ----------
   const PERIODS = [
     ["today", "Сегодня"], ["tomorrow", "Завтра"], ["after", "Послезавтра"],
-    ["thisweek", "На этой неделе"], ["prevweek", "Прошлая неделя"], ["nextweek", "Следующая неделя"],
+    ["thisweek", "На этой неделе"], ["undone", "Не выполненные"], ["prevweek", "Прошлая неделя"], ["nextweek", "Следующая неделя"],
     ["thismonth", "В этом месяце"], ["prevmonth", "Прошлый месяц"], ["nextmonth", "Следующий месяц"],
     ["all", "Все заказы"],
   ];
@@ -452,6 +452,8 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       case "tomorrow": return k === dayAt(1);
       case "after": return k === dayAt(2);
       case "thisweek": return k >= weekStart(0) && k < weekStart(1);
+      // заказы текущей недели, которые ещё не закрыты: выполненные и отменённые не считаем
+      case "undone": return k >= weekStart(0) && k < weekStart(1) && o.status !== "done" && o.status !== "cancel";
       case "prevweek": return k >= weekStart(-1) && k < weekStart(0);
       case "nextweek": return k >= weekStart(1) && k < weekStart(2);
       case "thismonth": return k.slice(0, 7) === monthKey(0);
@@ -537,7 +539,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   }
   const EMPTY = {
     today: "На сегодня заказов нет", tomorrow: "На завтра заказов нет", after: "На послезавтра заказов нет",
-    thisweek: "На этой неделе заказов нет", prevweek: "На прошлой неделе заказов не было",
+    thisweek: "На этой неделе заказов нет", undone: "На этой неделе всё выполнено", prevweek: "На прошлой неделе заказов не было",
     nextweek: "На следующей неделе заказов нет", thismonth: "В этом месяце заказов нет",
     prevmonth: "В прошлом месяце заказов не было", nextmonth: "В следующем месяце заказов нет",
     all: "Заказов пока нет",
