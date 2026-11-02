@@ -427,17 +427,26 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   // ---------- отрисовка ----------
   const PERIODS = [
     ["today", "Сегодня"], ["tomorrow", "Завтра"], ["after", "Послезавтра"],
-    ["week", "Ближайшие 7 дней"], ["month", "Этот месяц"], ["all", "Все заказы"],
+    ["thisweek", "На этой неделе"], ["prevweek", "Прошлая неделя"], ["nextweek", "Следующая неделя"],
+    ["month", "Этот месяц"], ["all", "Все заказы"],
   ];
   const keyOf = (o) => (o.start ? dayKey(new Date(o.start)) : "");
   const dayAt = (n) => dayKey(new Date(Date.now() + n * 86400000));
+  // Понедельник недели, сдвинутой на shift недель (0 — текущая). Неделя — с понедельника по воскресенье.
+  function weekStart(shift = 0) {
+    const d = new Date(dayAt(0) + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + shift * 7);
+    return d.toISOString().slice(0, 10);
+  }
   function inPeriod(o, p) {
     const k = keyOf(o);
     switch (p) {
       case "today": return k === dayAt(0);
       case "tomorrow": return k === dayAt(1);
       case "after": return k === dayAt(2);
-      case "week": return k >= dayAt(0) && k < dayAt(7);
+      case "thisweek": return k >= weekStart(0) && k < weekStart(1);
+      case "prevweek": return k >= weekStart(-1) && k < weekStart(0);
+      case "nextweek": return k >= weekStart(1) && k < weekStart(2);
       case "month": return k.slice(0, 7) === dayAt(0).slice(0, 7);
       default: return true;
     }
@@ -519,7 +528,8 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   }
   const EMPTY = {
     today: "На сегодня заказов нет", tomorrow: "На завтра заказов нет", after: "На послезавтра заказов нет",
-    week: "На ближайшие 7 дней заказов нет", month: "В этом месяце заказов нет", all: "Заказов пока нет",
+    thisweek: "На этой неделе заказов нет", prevweek: "На прошлой неделе заказов не было",
+    nextweek: "На следующей неделе заказов нет", month: "В этом месяце заказов нет", all: "Заказов пока нет",
   };
   function render() {
     renderPeriods();
