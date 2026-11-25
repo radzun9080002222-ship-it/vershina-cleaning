@@ -163,7 +163,26 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .skeleton{height:150px;border-radius:16px;background:linear-gradient(90deg,var(--surface),var(--soft),var(--surface));background-size:200% 100%;animation:sk 1.2s infinite;margin-top:22px}
 @keyframes sk{to{background-position:-200% 0}}
 .row .txt{flex:1}
-@media (max-width:520px){.call{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%}.call span{display:none}.call svg{width:17px;height:17px}}
+@media (max-width:520px){.call{padding:6px 9px;font-size:11px}.call svg{width:14px;height:14px}}
+.order-tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.order-tool,.staff-link{display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--brand);font:inherit;font-size:13px;font-weight:650;text-decoration:none;cursor:pointer}
+.staff-dialog{max-width:680px;width:calc(100% - 24px);max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line);border-radius:14px;background:var(--page);color:var(--ink);overflow:auto}
+.staff-dialog::backdrop{background:#101b1bc0}
+.staff-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;background:var(--page);border-bottom:1px solid var(--line)}
+.staff-head h2{margin:0;font-size:18px}
+.staff-head p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.staff-content{padding:14px;min-height:100px}
+.staff-filters,.staff-contact-actions{display:flex;flex-wrap:wrap;gap:6px}
+.staff-filters{margin-bottom:12px}
+.staff-filters button[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:white}
+.staff-entry{display:grid;gap:6px;padding:12px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.staff-entry h3,.staff-entry p{margin:0}
+.staff-entry p,.staff-state-note{font-size:13px;color:var(--muted);white-space:pre-line}
+.staff-state-grid{display:grid;gap:8px;margin-top:12px}
+.staff-state-grid button{justify-content:flex-start}
+.staff-state-grid button[aria-pressed=true]{border-color:var(--brand);color:var(--brand)}
+.staff-state-grid button:disabled{cursor:default;opacity:.7}
+@media(max-width:420px){.staff-head{align-items:flex-start;flex-wrap:wrap}.order-tool{font-size:12px}.card .rows .row:has(.call){flex-wrap:wrap}.card .rows .row .call{margin-left:auto}}
 @media (max-width:380px){.card{grid-template-columns:52px 1fr;gap:11px;padding:14px}.pad{grid-template-columns:repeat(3,70px)}.pad button{height:70px}}
 /* ---------- полный календарь (как Google Календарь на телефоне) ---------- */
 .cal-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:11px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;flex:none}
@@ -274,6 +293,13 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   <div id="calBody" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
 </section>
 <div id="sheetRoot"></div>
+<dialog id="staffTools" class="staff-dialog" aria-labelledby="staffToolTitle">
+  <header class="staff-head">
+    <div><h2 id="staffToolTitle"></h2><p id="staffToolCity"></p></div>
+    <button type="button" id="staffToolBack" class="order-tool">Вернуться в календарь</button>
+  </header>
+  <div id="staffToolBody" class="staff-content" aria-live="polite"></div>
+</dialog>
 
 <script>
 (() => {
@@ -299,6 +325,8 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   let timer = null;
   let tick = null;
   let busy = false;
+  let workflowAvailable = true;
+  let progressVersion = 0;
 
   // ---------- PIN ----------
   function paintDots(err) {
@@ -341,11 +369,11 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   }
 
   // ---------- данные ----------
-  async function load(p) {
+  async function load(p, action = {}) {
     const res = await fetch(API, {
       method: "POST",
       headers: { "content-type": "application/json", apikey: ANON, authorization: `Bearer ${ANON}` },
-      body: JSON.stringify({ pin: p }),
+      body: JSON.stringify({ pin: p, ...action }),
       cache: "no-store",
     });
     const data = await res.json().catch(() => ({}));
@@ -356,8 +384,12 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     const btn = $("refresh");
     if (manual) btn.classList.add("spin");
     try {
-      const r = await load(savedPin);
-      if (r.ok) { apply(r.data); hideBanner(); }
+      const version = progressVersion;
+      const activePin = savedPin;
+      const r = await load(activePin);
+      if (activePin !== savedPin) return;
+      if (r.ok && version === progressVersion) { apply(r.data); hideBanner(); }
+      else if (r.ok) return;
       else if (r.status === 401) { logout("PIN изменился — введите новый"); }
       else showBanner(r.error || "Не удалось обновить. Показаны последние данные.");
     } catch {
@@ -368,6 +400,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     }
   }
   function apply(data) {
+    workflowAvailable = data.workflowAvailable === true;
     orders = (data.orders || []).slice().sort((a, b) => (a.start || "").localeCompare(b.start || ""));
     lastOk = Date.now();
     render();
@@ -411,6 +444,15 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     plan: ["Запланирован", "st-plan"], open: ["Без отметки", "st-open"], done: ["Выполнен", "st-done"],
     cancel: ["Отменён", "st-cancel"], partial: ["Частично", "st-partial"], moved: ["Перенос", "st-moved"],
   };
+  const STAGES = {
+    received: ["Поступил", "st-plan"], team: ["Найдена команда", "st-plan"], working: ["В работе", "st-now"],
+    done: ["Выполнен", "st-done"], cancelled: ["Отменён", "st-cancel"],
+  };
+  const progressOf = (o) => o.progress || {
+    stage: o.status === "done" ? "done" : o.status === "cancel" ? "cancelled" : "received",
+    source: o.status === "done" || o.status === "cancel" ? "calendar" : "default",
+  };
+  const isClosed = (o) => ["done", "cancelled"].includes(progressOf(o).stage);
   const money = (n) => new Intl.NumberFormat("ru-RU").format(n) + " ₽";
   const prettyPhone = (p) => {
     const d = p.replace(/\D/g, "");
@@ -453,7 +495,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       case "after": return k === dayAt(2);
       case "thisweek": return k >= weekStart(0) && k < weekStart(1);
       // заказы текущей недели, которые ещё не закрыты: выполненные и отменённые не считаем
-      case "undone": return k >= weekStart(0) && k < weekStart(1) && o.status !== "done" && o.status !== "cancel";
+      case "undone": return k >= weekStart(0) && k < weekStart(1) && !isClosed(o);
       case "prevweek": return k >= weekStart(-1) && k < weekStart(0);
       case "nextweek": return k >= weekStart(1) && k < weekStart(2);
       case "thismonth": return k.slice(0, 7) === monthKey(0);
@@ -462,7 +504,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       default: return true;
     }
   }
-  const countActive = (arr) => arr.filter((o) => o.status !== "cancel").length;
+  const countActive = (arr) => arr.filter((o) => progressOf(o).stage !== "cancelled").length;
   function renderPeriods() {
     if (!PERIODS.some(([k]) => k === period)) period = "today";
     $("periods").innerHTML = PERIODS.map(([k, label]) => {
@@ -484,14 +526,15 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     const now = Date.now();
     const s = o.start ? new Date(o.start) : null;
     const e = o.end ? new Date(o.end) : null;
-    const isNow = s && e && s.getTime() <= now && now < e.getTime() && o.status !== "cancel";
-    const st = STATUS[o.status] || null;
+    const isNow = s && e && s.getTime() <= now && now < e.getTime() && !isClosed(o);
+    const st = STAGES[progressOf(o).stage];
+    const calendarNote = ["partial", "moved"].includes(o.status) ? STATUS[o.status] : null;
     const title = esc(o.service || "Заказ") + (o.area ? ` <em>· ${esc(String(o.area).replace(".", ","))} м²</em>` : "");
     const addr = [o.address, o.entrance ? `подъезд ${o.entrance}` : ""].filter(Boolean).join(", ");
     const mapQ = encodeURIComponent([o.city, o.address].filter(Boolean).join(", "));
     const rows = [];
     if (o.address) rows.push(`<div class="row">${ICON.pin}<span class="txt"><a href="https://yandex.ru/maps/?text=${mapQ}" target="_blank" rel="noopener">${esc(addr)}</a></span></div>`);
-    if (o.client || o.phone) rows.push(`<div class="row">${ICON.user}<span class="txt">${esc(o.client || "Клиент")}${o.phone ? `<span class="ph">${esc(prettyPhone(o.phone))}</span>` : ""}</span>${o.phone ? `<a class="call" href="tel:${esc(o.phone)}" aria-label="Позвонить">${ICON.phone}<span>Позвонить</span></a>` : ""}</div>`);
+    if (o.client || o.phone) rows.push(`<div class="row">${ICON.user}<span class="txt">${esc(o.client || "Клиент")}${o.phone ? `<span class="ph">${esc(prettyPhone(o.phone))}</span>` : ""}</span>${o.phone ? `<a class="call" href="tel:${esc(o.phone)}" aria-label="Позвонить клиенту">${ICON.phone}<span>Позвонить клиенту</span></a>` : ""}</div>`);
     if (o.duration) rows.push(`<div class="row">${ICON.clock}<span class="txt">${esc(o.duration)}</span></div>`);
     const items = o.money ? (o.items || []) : (o.items || []).filter((it, i) => !(i === 0 && o.service && it.toLowerCase().startsWith(o.service.toLowerCase())));
     const m = o.money;
@@ -503,7 +546,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
         ${cell("Прибыль", m.profit, m.profit < 0 ? "neg" : "pos")}
       </div>` : "";
     const showTitle = o.title && o.title.trim().toLowerCase() !== [o.service, o.area ? o.area + " м²" : ""].filter(Boolean).join(", ").toLowerCase();
-    return `<article class="card${isNow ? " now" : ""}${o.status === "cancel" ? " cancel" : ""}">
+    return `<article class="card${isNow ? " now" : ""}${progressOf(o).stage === "cancelled" ? " cancel" : ""}">
       <div class="time">
         ${o.allDay ? "<b>Весь</b><span>день</span>" : `<b>${s ? localTime(s, o.city) : "—"}</b><span>${e ? "до " + localTime(e, o.city) : ""}</span>${CITY_TZ[o.city] ? '<span class="loc">местное</span>' : ""}`}
         <div class="bar-v"></div>
@@ -511,7 +554,8 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       <div class="body">
         <div class="tags">
           ${o.city ? `<span class="tag city">${esc(o.city)}</span>` : ""}
-          ${isNow ? '<span class="tag st-now">Идёт сейчас</span>' : st ? `<span class="tag ${st[1]}">${st[0]}</span>` : ""}
+          <span class="tag ${st[1]}">${st[0]}</span>
+          ${calendarNote ? `<span class="tag ${calendarNote[1]}">${calendarNote[0]}</span>` : ""}
         </div>
         <h3 class="svc">${title}</h3>
         ${showTitle ? `<div class="ctitle">${esc(o.title)}</div>` : ""}
@@ -519,6 +563,11 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
         ${items.length ? `<div class="items${o.money ? " priced" : ""}">${items.map((i) => `<span>${esc(i).replace(/(\d) (?=\d)/g, "$1&nbsp;").replace(/ ₽/g, "&nbsp;₽")}</span>`).join("")}</div>` : ""}
         ${o.notes ? `<div class="notes">${esc(o.notes)}</div>` : ""}
         ${moneyHtml}
+        <div class="order-tools">
+          <button type="button" class="order-tool" data-staff-action="cleaners" data-order="${esc(o.id)}">Найти клинера</button>
+          <button type="button" class="order-tool" data-staff-action="chats" data-order="${esc(o.id)}">Городские чаты</button>
+          <button type="button" class="order-tool" data-staff-action="status" data-order="${esc(o.id)}">Статус заказа</button>
+        </div>
       </div>
     </article>`;
   }
@@ -584,6 +633,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     if (!tick) tick = setInterval(() => { paintLive(); if (orders.length) { render(); renderCal(); } }, 60000); // «идёт сейчас» и «сегодня» без запроса
   }
   function logout(msg) {
+    if ($("staffTools").open) $("staffTools").close();
     if (calOpen) closeCal();
     savedPin = null; store.del(KEY); clearInterval(timer); orders = []; pin = "";
     $("appView").classList.add("hidden"); $("pinView").classList.remove("hidden");
@@ -664,14 +714,14 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     const w = 100 / it.cols;
     const t = `${fmtTime(new Date(o.start))}${o.end ? "–" + fmtTime(new Date(o.end)) : ""}`;
     const sub = [o.city, o.address].filter(Boolean).join(", ");
-    return `<div class="cal-ev${narrow ? " n" : ""}${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}"
+    return `<div class="cal-ev${narrow ? " n" : ""}${progressOf(o).stage === "cancelled" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}"
       style="top:${(it.sm / 60) * HH + 1}px;height:${h}px;left:calc(${w * it.col}% + 1px);width:calc(${w}% - 3px);background:${evColor(o)}">
       ${narrow
         ? `<b>${esc(o.city || o.service || "Заказ")}</b>${h > 34 ? `<i>${fmtTime(new Date(o.start))}</i>` : ""}${h > 60 && o.area ? `<i>${esc(String(o.area))} м²</i>` : ""}`
         : `<b>${esc(o.service || "Заказ")}${o.area ? " · " + esc(String(o.area)) + " м²" : ""}</b>${h > 34 ? `<i>${t}</i>` : ""}${h > 50 && sub ? `<i>${esc(sub)}</i>` : ""}`}</div>`;
   }
   function chip(o) {
-    return `<span class="cal-chip${o.status === "cancel" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}" style="background:${evColor(o)}">${esc(o.city || o.service || "Заказ")}</span>`;
+    return `<span class="cal-chip${progressOf(o).stage === "cancelled" ? " cancel" : ""}${isDark(o) ? " dark" : ""}" data-id="${esc(o.id)}" style="background:${evColor(o)}">${esc(o.city || o.service || "Заказ")}</span>`;
   }
   function renderTimeGrid(days) {
     const today = mskKey(Date.now());
@@ -743,6 +793,143 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   }
   function closeSheet() { $("sheetRoot").innerHTML = ""; }
 
+  // ---------- поиск команды и отметки бригадира ----------
+  const toolNames = { cleaners: "Найти клинера", chats: "Городские чаты", status: "Статус заказа" };
+  const cleanerKinds = { private: "Частник", team: "Бригада", company: "Клининговая компания", other: "Другое" };
+  const filters = [["all", "Все"], ["private", "Частники"], ["team", "Бригады"], ["company", "Клининговые компании"], ["phone", "С телефоном"], ["dry", "Химчистка"]];
+  let currentTool = null;
+
+  $("staffToolBack").addEventListener("click", () => $("staffTools").close());
+  $("staffTools").addEventListener("close", () => {
+    if ($("staffTools").open) return;
+    currentTool = null;
+    $("staffToolBody").replaceChildren();
+  });
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-staff-action][data-order]");
+    if (button && savedPin) openStaffTool(button.dataset.staffAction, button.dataset.order);
+  });
+
+  function external(href, label) {
+    if (!href) return "";
+    try {
+      const url = new URL(href);
+      if (url.protocol !== "https:" || url.username || url.password) return "";
+      return `<a class="staff-link" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+    } catch { return ""; }
+  }
+
+  function renderCleaners(entries, filter) {
+    const panel = $("staffToolBody");
+    const visible = entries.filter((entry) => filter === "all" || filter === entry.kind
+      || (filter === "phone" && entry.phone) || (filter === "dry" && entry.category));
+    panel.innerHTML = `<div class="staff-filters" aria-label="Тип исполнителя">${filters.map(([key, label]) =>
+      `<button type="button" class="order-tool" data-filter="${key}" aria-pressed="${key === filter}">${label}</button>`).join("")}</div>
+      <p class="staff-state-note">${visible.length} из ${entries.length}</p>
+      ${visible.length ? visible.map((entry) => {
+        const phone = /^\+7\d{10}$/.test(entry.phone || "") ? entry.phone : "";
+        return `<article class="staff-entry"><h3>${esc(entry.name)}</h3>
+          <p>${esc([cleanerKinds[entry.kind], entry.category, entry.area, entry.source].filter(Boolean).join(" · "))}</p>
+          ${entry.services || entry.price ? `<p>${esc([entry.services, entry.price].filter(Boolean).join(" · "))}</p>` : ""}
+          ${entry.rating || entry.callStatus ? `<p>${esc([entry.rating, entry.callStatus].filter(Boolean).join(" · "))}</p>` : ""}
+          <div class="staff-contact-actions">
+            ${phone ? `<a class="staff-link" href="tel:${esc(phone)}">Позвонить · ${esc(prettyPhone(phone))}</a>` : ""}
+            ${external(entry.url, entry.source ? "Открыть · " + entry.source : "Открыть объявление")}
+            ${entry.contactUrl !== entry.url ? external(entry.contactUrl, "Написать") : ""}
+          </div>
+        </article>`;
+      }).join("") : '<p>По этому фильтру контактов нет.</p>'}`;
+  }
+
+  function renderChats(entries) {
+    $("staffToolBody").innerHTML = entries.length ? entries.map((entry) => `<article class="staff-entry">
+      <h3>${esc(entry.name)}</h3><p>${esc([entry.platform, entry.format, entry.topic].filter(Boolean).join(" · "))}</p>
+      ${entry.description ? `<p>${esc(entry.description)}</p>` : ""}
+      ${entry.posting ? `<p>Публикация объявлений — ${esc(entry.posting)}</p>` : ""}
+      <div>${external(entry.url, "Открыть " + (entry.platform || "чат"))}</div>
+    </article>`).join("") : "<p>В таблице пока нет чатов для этого города.</p>";
+  }
+
+  function renderStatus(orderId, message = "") {
+    const order = orders.find((item) => item.id === orderId);
+    if (!order) { $("staffToolBody").textContent = "Заказ больше недоступен в календаре."; return; }
+    const progress = progressOf(order);
+    const locked = order.status === "done" || order.status === "cancel";
+    const reason = locked ? "Закрыт в Google Календаре. Здесь показан статус из календаря."
+      : !workflowAvailable ? "Сервис сохранения статусов временно недоступен."
+      : "Отметка бригадира видна коллегам. Оплаты и результаты для отчётов ведутся в Google Календаре.";
+    $("staffToolBody").innerHTML = `<p class="staff-state-note">${esc(reason)}${!locked && progress.source === "calendar" ? " Статус определён по времени выезда." : ""}</p>
+      <div class="staff-state-grid">${Object.entries(STAGES).map(([stage, [label]]) =>
+        `<button type="button" class="order-tool" data-stage="${stage}" aria-pressed="${progress.stage === stage}" ${locked || !workflowAvailable ? "disabled" : ""}>${label}</button>`).join("")}
+        ${!locked && workflowAvailable ? '<button type="button" class="order-tool" data-stage="auto">По календарю</button>' : ""}
+      </div><p class="staff-state-note" id="staffProgressMessage" role="status">${esc(message)}</p>`;
+  }
+
+  async function openStaffTool(action, orderId) {
+    const order = orders.find((item) => item.id === orderId);
+    if (!order || !toolNames[action]) return;
+    const wasOpen = $("staffTools").open;
+    const tool = currentTool = { action, orderId, entries: [], filter: "all" };
+    $("staffToolTitle").textContent = toolNames[action];
+    $("staffToolCity").textContent = order.city || "Город не указан";
+    $("staffToolBody").textContent = "Загружаем…";
+    if (!wasOpen) $("staffTools").showModal();
+    if (action === "status") { renderStatus(orderId); return; }
+    try {
+      const result = await load(savedPin, { action, orderId });
+      if (currentTool !== tool) return;
+      if (result.status === 401) { logout("PIN изменился — введите новый"); return; }
+      if (!result.ok) throw new Error(result.error || "Не удалось загрузить данные");
+      if (!Array.isArray(result.data.entries)) throw new Error("Список временно недоступен");
+      tool.entries = result.data.entries;
+      if (action === "cleaners") renderCleaners(tool.entries, tool.filter);
+      else renderChats(tool.entries);
+    } catch (error) {
+      if (currentTool !== tool) return;
+      $("staffToolBody").innerHTML = `<p>${esc(error.message || "Не удалось загрузить данные")}</p><button type="button" class="order-tool" data-tool-retry>Повторить</button>`;
+    }
+  }
+
+  $("staffToolBody").addEventListener("click", async (event) => {
+    const tool = currentTool;
+    const button = event.target.closest("button");
+    if (!tool || !button) return;
+    if (button.hasAttribute("data-tool-retry")) { openStaffTool(tool.action, tool.orderId); return; }
+    if (button.dataset.filter) {
+      tool.filter = button.dataset.filter;
+      renderCleaners(tool.entries, tool.filter);
+      $("staffToolBody").querySelector(`[data-filter="${tool.filter}"]`)?.focus();
+      return;
+    }
+    if (!button.dataset.stage || tool.saving) return;
+    tool.saving = true;
+    $("staffToolBody").querySelectorAll("[data-stage]").forEach((item) => { item.disabled = true; });
+    $("staffProgressMessage").textContent = "Сохраняем…";
+    try {
+      const currentPin = savedPin;
+      const result = await load(currentPin, {
+        action: "status", orderId: tool.orderId, stage: button.dataset.stage === "auto" ? null : button.dataset.stage,
+      });
+      if (currentPin !== savedPin) return;
+      if (result.status === 401) { logout("PIN изменился — введите новый"); return; }
+      if (result.data.progress) {
+        progressVersion++;
+        const order = orders.find((item) => item.id === tool.orderId);
+        if (order) {
+          order.progress = result.data.progress;
+          if (result.status === 409) order.status = result.data.progress.stage === "done" ? "done" : "cancel";
+          render(); renderCal();
+          if ($("sheetRoot").innerHTML) openSheet(order.id);
+        }
+      }
+      if (currentTool === tool) renderStatus(tool.orderId, result.ok ? "Статус сохранён." : result.error || "Не удалось сохранить статус.");
+    } catch {
+      if (currentTool === tool) renderStatus(tool.orderId, "Нет связи. Попробуйте сохранить ещё раз.");
+    } finally {
+      tool.saving = false;
+    }
+  });
+
   $("openCal").addEventListener("click", () => openCal());
   $("calBack").addEventListener("click", () => closeCal());
   $("calPrev").addEventListener("click", () => calShift(-1));
@@ -769,7 +956,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) calShift(dx < 0 ? 1 : -1);
   }, { passive: true });
   window.addEventListener("popstate", () => { if (calOpen && location.hash !== "#calendar") closeCal(true); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("sheetRoot").innerHTML) closeSheet(); else if (calOpen) closeCal(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("staffTools").open) { if ($("sheetRoot").innerHTML) closeSheet(); else if (calOpen) closeCal(); } });
 
   if (savedPin) { showApp(); refresh(); if (location.hash === "#calendar") openCal(false); }
 })();
