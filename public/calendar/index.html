@@ -89,6 +89,16 @@ a{color:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
 .filters{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 12px}
 .filters::-webkit-scrollbar{display:none}
+.period-toolbar{display:none}
+@media(max-width:640px){
+  .period-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 0 8px}
+  .period-current{min-width:0;font-size:12px;font-weight:650;color:var(--ink);overflow-wrap:anywhere}
+  .period-toggle{display:inline-flex;margin-left:auto;align-items:center;gap:5px;min-height:38px;padding:5px 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--brand-dark);font:inherit;font-size:12px;font-weight:650;cursor:pointer;flex:none}
+  .period-toggle svg{width:15px;height:15px;flex:none}
+  .period-toggle[aria-expanded=true] svg{transform:rotate(180deg)}
+  .period-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  html.period-layout{overflow-anchor:none}
+}
 .chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
 .chip b{font-weight:600;color:var(--muted);margin-left:4px}
 .chip.on{background:var(--ink);border-color:var(--ink);color:var(--page)}
@@ -285,7 +295,14 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
       </div>
-      <div class="filters" id="periods"></div>
+      <div class="period-toolbar">
+        <span class="period-current hidden" id="selectedPeriod"></span>
+        <button type="button" class="period-toggle" id="togglePeriods" aria-controls="periods" aria-expanded="true">
+          <span id="togglePeriodsLabel">Свернуть фильтры</span>
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="filters" id="periods" role="group" aria-label="Период заказов"></div>
     </div>
   </header>
   <main class="wrap">
@@ -530,7 +547,9 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     if (!PERIODS.some(([k]) => k === period)) period = "today";
     $("periods").innerHTML = PERIODS.map(([k, label]) => {
       const n = countActive(orders.filter((o) => inPeriod(o, k)));
-      return `<button class="chip${period === k ? " on" : ""}" data-p="${k}">${label}<b>${n}</b></button>`;
+      const selected = period === k;
+      if (selected) $("selectedPeriod").textContent = `${label} · ${n}`;
+      return `<button type="button" class="chip${selected ? " on" : ""}" data-p="${k}" aria-pressed="${selected}">${label}<b>${n}</b></button>`;
     }).join("");
   }
   function renderSummary(list) {
@@ -638,6 +657,39 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   const plural = (n, a, b, c) => (n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c);
 
   // ---------- управление ----------
+  const compactPeriods = matchMedia("(max-width: 640px)");
+  let periodScrollStart = 0;
+  let periodLayout = 0;
+
+  function setPeriodsExpanded(expanded) {
+    const list = $("periods");
+    const toggle = $("togglePeriods");
+    if (!expanded && list.contains(document.activeElement)) toggle.focus({ preventScroll: true });
+    document.documentElement.classList.add("period-layout");
+    list.classList.toggle("hidden", !expanded);
+    $("selectedPeriod").classList.toggle("hidden", expanded);
+    toggle.setAttribute("aria-expanded", String(expanded));
+    $("togglePeriodsLabel").textContent = expanded ? "Свернуть фильтры" : "Развернуть фильтры";
+    // Ignore scroll adjustments caused by changing the sticky header's height.
+    cancelAnimationFrame(periodLayout);
+    periodLayout = requestAnimationFrame(() => {
+      periodLayout = requestAnimationFrame(() => {
+        periodScrollStart = Math.max(0, window.scrollY);
+        document.documentElement.classList.remove("period-layout");
+        periodLayout = 0;
+      });
+    });
+  }
+  $("togglePeriods").addEventListener("click", () =>
+    setPeriodsExpanded($("togglePeriods").getAttribute("aria-expanded") !== "true"));
+  compactPeriods.addEventListener("change", () => setPeriodsExpanded(true));
+  window.addEventListener("scroll", () => {
+    if (!compactPeriods.matches || !savedPin || calOpen || periodLayout || $("periods").classList.contains("hidden")) return;
+    const y = Math.max(0, window.scrollY);
+    if (y < periodScrollStart) periodScrollStart = y;
+    if (y - periodScrollStart >= 32) setPeriodsExpanded(false);
+  }, { passive: true });
+
   $("periods").addEventListener("click", (e) => {
     const p = e.target.closest("button")?.dataset.p;
     if (!p) return;
@@ -650,6 +702,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   window.addEventListener("online", () => refresh());
 
   function showApp() {
+    setPeriodsExpanded(true);
     $("pinView").classList.add("hidden");
     $("appView").classList.remove("hidden");
     clearInterval(timer);
