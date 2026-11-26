@@ -169,6 +169,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .order-tools>.order-tool{--action:#0e6e5d;--action-hover:#09594b;justify-content:flex-start;gap:8px;min-height:44px;padding:8px 13px;border:1px solid transparent;border-radius:10px;background:var(--action);color:#fff;font-size:13px;font-weight:700;line-height:1.25;box-shadow:0 2px 0 var(--action-hover),0 4px 9px color-mix(in srgb,var(--action) 24%,transparent);transition:background .16s,box-shadow .16s,transform .16s}
 .order-tools>[data-staff-action="chats"]{--action:#245db2;--action-hover:#194b96}
 .order-tools>[data-staff-action="status"]{--action:#6944a5;--action-hover:#55348a}
+.order-tools>[data-staff-action="checklists"]{--action:#814e16;--action-hover:#693c10}
 .order-tools>.order-tool svg{width:18px;height:18px;flex:none}
 .order-tools>.order-tool:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 @media(hover:hover){.order-tools>.order-tool:hover{background:var(--action-hover);transform:translateY(-1px)}}
@@ -187,6 +188,12 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 .staff-entry{display:grid;gap:6px;padding:12px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
 .staff-entry h3,.staff-entry p{margin:0}
 .staff-entry p,.staff-state-note{font-size:13px;color:var(--muted);white-space:pre-line}
+.checklist-links{display:grid;gap:8px}
+.checklist-download{min-height:46px;justify-content:space-between;gap:8px;padding:9px 12px;color:var(--ink);text-align:left}
+.checklist-download span{display:inline-flex;align-items:center;gap:5px;flex:none;color:var(--brand-dark)}
+.checklist-download svg{width:16px;height:16px}
+.checklist-download:hover{border-color:var(--brand);background:var(--brand-soft)}
+.checklist-download:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .staff-state-grid{display:grid;gap:8px;margin-top:12px}
 .staff-state-grid button{justify-content:flex-start}
 .staff-state-grid button[aria-pressed=true]{border-color:var(--brand);color:var(--brand)}
@@ -472,6 +479,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
     user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    download: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>',
     searchUser: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 19v-2a4 4 0 0 1 4-4h3"/><circle cx="16" cy="15" r="3.5"/><path d="m18.5 17.5 3 3"/></svg>',
     chat: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.5-4A7.5 7.5 0 1 1 20 11.5Z"/><path d="M9 11.5h7M9 14.5h4"/></svg>',
     checklist: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5v2h6v-2M9 13l2 2 4-4"/></svg>',
@@ -579,6 +587,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
           <button type="button" class="order-tool" data-staff-action="cleaners" data-order="${esc(o.id)}">${ICON.searchUser}Найти клинера</button>
           <button type="button" class="order-tool" data-staff-action="chats" data-order="${esc(o.id)}">${ICON.chat}Городские чаты</button>
           <button type="button" class="order-tool" data-staff-action="status" data-order="${esc(o.id)}">${ICON.checklist}Статус заказа</button>
+          <button type="button" class="order-tool" data-staff-action="checklists" data-order="${esc(o.id)}">${ICON.download}Чек-листы</button>
         </div>
       </div>
     </article>`;
@@ -806,7 +815,12 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
   function closeSheet() { $("sheetRoot").innerHTML = ""; }
 
   // ---------- поиск команды и отметки бригадира ----------
-  const toolNames = { cleaners: "Найти клинера", chats: "Городские чаты", status: "Статус заказа" };
+  const toolNames = { cleaners: "Найти клинера", chats: "Городские чаты", status: "Статус заказа", checklists: "Чек-листы" };
+  const checklists = [
+    ["Влажная уборка", "wet-cleaning.pdf", "Вершина - чек-лист влажной уборки.pdf"],
+    ["Генеральная уборка", "deep-cleaning.pdf", "Вершина - чек-лист генеральной уборки.pdf"],
+    ["Уборка после ремонта", "post-renovation.pdf", "Вершина - чек-лист после ремонта.pdf"],
+  ];
   const cleanerKinds = { private: "Частник", team: "Бригада", company: "Клининговая компания", other: "Другое" };
   const filters = [["all", "Все"], ["private", "Частники"], ["team", "Бригады"], ["company", "Клининговые компании"], ["phone", "С телефоном"], ["dry", "Химчистка"]];
   let currentTool = null;
@@ -877,15 +891,25 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
       </div><p class="staff-state-note" id="staffProgressMessage" role="status">${esc(message)}</p>`;
   }
 
+  function renderChecklists() {
+    $("staffToolBody").innerHTML = `<div class="checklist-links">
+      ${checklists.map(([title, path, filename]) => `<a class="staff-link checklist-download" href="/calendar/checklists/${path}" download="${esc(filename)}">
+        ${esc(title)}<span>${ICON.download} PDF</span>
+      </a>`).join("")}
+    </div>`;
+  }
+
   async function openStaffTool(action, orderId) {
     const order = orders.find((item) => item.id === orderId);
     if (!order || !toolNames[action]) return;
     const wasOpen = $("staffTools").open;
     const tool = currentTool = { action, orderId, entries: [], filter: "all" };
     $("staffToolTitle").textContent = toolNames[action];
+    $("staffToolCity").hidden = action === "checklists";
     $("staffToolCity").textContent = order.city || "Город не указан";
     $("staffToolBody").textContent = "Загружаем…";
     if (!wasOpen) $("staffTools").showModal();
+    if (action === "checklists") { renderChecklists(); return; }
     if (action === "status") { renderStatus(orderId); return; }
     try {
       const result = await load(savedPin, { action, orderId });
