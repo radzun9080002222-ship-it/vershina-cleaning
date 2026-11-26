@@ -164,6 +164,7 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 @keyframes sk{to{background-position:-200% 0}}
 .row .txt{flex:1}
 @media (max-width:520px){.call{padding:6px 9px;font-size:11px}.call svg{width:14px;height:14px}}
+.empty .order-tools{justify-content:center}
 .order-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .order-tool,.staff-link{display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--brand);font:inherit;font-size:13px;font-weight:650;text-decoration:none;cursor:pointer}
 .order-tools>.order-tool{--action:#0e6e5d;--action-hover:#09594b;justify-content:flex-start;gap:8px;min-height:44px;padding:8px 13px;border:1px solid transparent;border-radius:10px;background:var(--action);color:#fff;font-size:13px;font-weight:700;line-height:1.25;box-shadow:0 2px 0 var(--action-hover),0 4px 9px color-mix(in srgb,var(--action) 24%,transparent);transition:background .16s,box-shadow .16s,transform .16s}
@@ -619,7 +620,9 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
     const list = orders.filter((o) => inPeriod(o, period));
     renderSummary(list);
     if (!list.length) {
-      $("list").innerHTML = `<div class="empty"><b>${EMPTY[period]}</b>Как только заказ появится в календаре, он будет здесь.</div>`;
+      $("list").innerHTML = `<div class="empty"><b>${EMPTY[period]}</b>Как только заказ появится в календаре, он будет здесь.
+        <div class="order-tools"><button type="button" class="order-tool" data-staff-action="checklists" data-order="">${ICON.download}Чек-листы</button></div>
+      </div>`;
       return;
     }
     if (period === "all" || period.endsWith("month")) {
@@ -901,12 +904,12 @@ main{padding:6px 0 calc(40px + env(safe-area-inset-bottom))}
 
   async function openStaffTool(action, orderId) {
     const order = orders.find((item) => item.id === orderId);
-    if (!order || !toolNames[action]) return;
+    if (!toolNames[action] || (!order && action !== "checklists")) return;
     const wasOpen = $("staffTools").open;
     const tool = currentTool = { action, orderId, entries: [], filter: "all" };
     $("staffToolTitle").textContent = toolNames[action];
     $("staffToolCity").hidden = action === "checklists";
-    $("staffToolCity").textContent = order.city || "Город не указан";
+    $("staffToolCity").textContent = action === "checklists" ? "" : order.city || "Город не указан";
     $("staffToolBody").textContent = "Загружаем…";
     if (!wasOpen) $("staffTools").showModal();
     if (action === "checklists") { renderChecklists(); return; }
